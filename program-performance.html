@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instellars — Program Performance</title>
+<link rel="stylesheet" href="css/app.css" />
+<style>
+  .pp-body { max-width: 1180px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .pp-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0.9rem; margin-bottom: 1.4rem; }
+  .pp-kpi-card { background: var(--white); border: 1px solid var(--rule); border-radius: 8px; padding: 1.1rem 1.2rem; }
+  .pp-kpi-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); margin-bottom: 0.4rem; }
+  .pp-kpi-value { font-size: 1.6rem; font-weight: 700; color: var(--ink); }
+  .pp-kpi-sub { font-size: 0.76rem; color: var(--ink-soft); margin-top: 0.3rem; }
+  .pp-kpi-sub.positive { color: var(--success); font-weight: 600; }
+  .pp-section-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+  .pp-barchart { display: flex; flex-direction: column; gap: 0.55rem; }
+  .pp-bar-row { display: grid; grid-template-columns: minmax(90px,auto) 1fr 3.4rem; align-items: center; gap: 0.6rem; }
+  .pp-bar-label { font-size: 0.76rem; color: var(--ink); }
+  .pp-bar-track { background: var(--paper); border-radius: 4px; height: 10px; overflow: hidden; }
+  .pp-bar-fill { background: var(--brass); height: 100%; border-radius: 4px; }
+  .pp-bar-value { font-size: 0.76rem; color: var(--ink-soft); text-align: right; font-variant-numeric: tabular-nums; }
+  .pp-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  .pp-table th { text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); padding: 0.4rem 0.5rem; border-bottom: 1px solid var(--rule); }
+  .pp-table td { padding: 0.5rem; border-bottom: 1px solid var(--paper-alt); color: var(--ink); }
+  .pp-table td.pp-num { text-align: right; font-variant-numeric: tabular-nums; }
+  .pp-methodology { background: var(--paper); border: 1px dashed var(--rule); border-radius: 6px; padding: 0.9rem 1rem; font-size: 0.78rem; color: var(--ink-soft); line-height: 1.5; margin-top: 1rem; }
+  @media (max-width: 860px) { .pp-section-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="app" class="bnk-root"></div>
+
+<script src="js/data.js"></script>
+<script src="js/session.js"></script>
+<script src="js/explainability.js"></script>
+<script src="js/governance.js"></script>
+<script src="js/cdh.js"></script>
+<script src="js/program-performance.js"></script>
+<script>
+  function fmtPct(v) { return `${(v * 100).toFixed(1)}%`; }
+  function fmtMoney(v) { return `$${Math.round(v).toLocaleString()}`; }
+  function fmtChange(v) { return `${v >= 0 ? "+" : ""}${v.toFixed(1)}%`; }
+  // renderLiveBadge (dashboard.html/mobile-app.html) isn't a shared function —
+  // each file has its own inline copy tied to its own state shape — so this
+  // page gets its own small equivalent instead of depending on either.
+  function ppLiveBadge(isFallback) {
+    return `<span class="bnk-live-badge ${isFallback ? "down" : "live"}">${isFallback ? icon("wifiOff", 13) : icon("wifi", 13)}${isFallback ? "Fallback mode" : "Live"}</span>`;
+  }
+
+  function renderLive(data) {
+    const filtered = ppFilterRealMetrics(data.MetricsList);
+    const headline = ppBuildRealHeadline(data.AggregatedMetrics);
+    const daily = ppBuildRealDailyTrend(data.MetricsList);
+    const groups = ppBuildRealGroupBreakdown(data.MetricsList);
+    const issues = ppBuildRealIssueBreakdown(data.MetricsList);
+    const actionTable = ppBuildRealActionTable(data.MetricsList);
+
+    document.getElementById("app").innerHTML = `
+      <div>
+        <div class="bnk-header">
+          <div class="bnk-brand" style="margin-bottom:0;">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+          <div class="bnk-header-right">
+            <span class="bnk-segment-pill">${icon("trendingUp", 13)} Program Performance</span>
+            <a href="dashboard.html" style="font-size:0.85rem;color:var(--ink-soft);text-decoration:none;">← Back to dashboard</a>
+          </div>
+        </div>
+
+        <div class="pp-body">
+          <div class="bnk-greeting" style="margin-bottom:0.3rem;">Program Performance</div>
+          <div style="font-size:0.86rem;color:var(--ink-soft);margin-bottom:1.4rem;max-width:70ch;">
+            ${ppLiveBadge(false)} Live from Pega's APMetrics endpoint — aggregate action-performance metrics for the date range Pega currently has data for, not scoped to a single customer.
+          </div>
+
+          <div class="pp-kpi-grid">
+            <div class="pp-kpi-card">
+              <div class="pp-kpi-label">Sends</div>
+              <div class="pp-kpi-value">${headline.sends.toLocaleString()}</div>
+              <div class="pp-kpi-sub">Estimated at 1.5x impressions — live Sends isn't populated yet</div>
+            </div>
+            <div class="pp-kpi-card">
+              <div class="pp-kpi-label">Impressions</div>
+              <div class="pp-kpi-value">${headline.impressions.toLocaleString()}</div>
+              <div class="pp-kpi-sub ${headline.pctChangeImpressions >= 0 ? 'positive' : ''}">${fmtChange(headline.pctChangeImpressions)} vs. prior period</div>
+            </div>
+            <div class="pp-kpi-card">
+              <div class="pp-kpi-label">Accepts</div>
+              <div class="pp-kpi-value">${headline.accepts.toLocaleString()}</div>
+              <div class="pp-kpi-sub ${headline.pctChangeAccepts >= 0 ? 'positive' : ''}">${fmtChange(headline.pctChangeAccepts)} vs. prior period</div>
+            </div>
+            <div class="pp-kpi-card">
+              <div class="pp-kpi-label">Accept rate</div>
+              <div class="pp-kpi-value">${fmtPct(headline.acceptRate)}</div>
+              <div class="pp-kpi-sub">Accepts ÷ impressions, live</div>
+            </div>
+            <div class="pp-kpi-card">
+              <div class="pp-kpi-label">Actions with activity</div>
+              <div class="pp-kpi-value">${actionTable.length}</div>
+              <div class="pp-kpi-sub">Distinct propositions in this date range</div>
+            </div>
+          </div>
+
+          <div class="pp-section-grid">
+            <div class="bnk-sidebar-panel">
+              <div class="bnk-sidebar-panel-header"><div class="bnk-sidebar-panel-title">${icon("trendingUp", 15)} Daily impressions</div></div>
+              ${daily.length ? ppRealTrendChart(daily) : `<div class="bnk-journey-empty">No dated rows with a populated Action in this response.</div>`}
+            </div>
+            <div class="bnk-sidebar-panel">
+              <div class="bnk-sidebar-panel-header"><div class="bnk-sidebar-panel-title">${icon("landmark", 15)} Accept rate by issue</div></div>
+              ${issues.length ? ppBarChart(issues, { labelKey: "issue", valueKey: "rate" }) : `<div class="bnk-journey-empty">No data.</div>`}
+            </div>
+          </div>
+
+          <div class="pp-section-grid">
+            <div class="bnk-sidebar-panel">
+              <div class="bnk-sidebar-panel-header"><div class="bnk-sidebar-panel-title">${icon("shieldCheck", 15)} Accept rate by proposition group</div></div>
+              ${groups.length ? ppBarChart(groups, { labelKey: "group", valueKey: "rate" }) : `<div class="bnk-journey-empty">No data.</div>`}
+            </div>
+            <div class="bnk-sidebar-panel">
+              <div class="bnk-sidebar-panel-header"><div class="bnk-sidebar-panel-title">${icon("info", 15)} Actions in this date range</div></div>
+              <table class="pp-table">
+                <thead><tr><th>Action</th><th class="pp-num">Sends</th><th class="pp-num">Impressions</th><th class="pp-num">Accepts</th><th class="pp-num">Rate</th></tr></thead>
+                <tbody>
+                  ${actionTable.map(a => `<tr><td>${a.action}<div style="font-size:0.68rem;color:var(--ink-soft);">${a.group} · ${a.issue}</div></td><td class="pp-num">${a.sends.toLocaleString()}</td><td class="pp-num">${a.impressions.toLocaleString()}</td><td class="pp-num">${a.accepts.toLocaleString()}</td><td class="pp-num">${fmtPct(a.rate)}</td></tr>`).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="pp-methodology">
+            <strong>Methodology note:</strong> this is real, live data from Pega's APMetrics endpoint (<span class="bnk-mono">MessageStatus/v1/APMetrics</span>) — ${filtered.length} rows with a populated Action out of ${(data.MetricsList || []).length} returned; the excluded rows are "All Issues" placeholders (no Group/Action/Issue) Pega adds at the calendar boundary of the date range and carry no real per-proposition metric. There's no channel dimension in this response, so the "by channel" breakdown shown when this API isn't reachable doesn't appear here — everything above is aggregated straight from what Pega returned, not simulated, with one exception: <strong>Sends</strong> is estimated as 1.5x Impressions (a placeholder multiplier, not a real send-through rate) since the live field itself always comes back 0 on this instance — not yet populated on Pega's side.
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderSimulated(errorMessage) {
+    const weeklySeries = ppBuildWeeklySeries();
+    const journeys = ppBuildJourneyBreakdown();
+    const channels = ppBuildChannelBreakdown();
+    const topOffers = ppBuildTopOffers();
+    const headline = ppComputeHeadline(weeklySeries);
+
+    document.getElementById("app").innerHTML = `
+      <div>
+        <div class="bnk-header">
+          <div class="bnk-brand" style="margin-bottom:0;">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+          <div class="bnk-header-right">
+            <span class="bnk-segment-pill">${icon("trendingUp", 13)} Program Performance</span>
+            <a href="dashboard.html" style="font-size:0.85rem;color:var(--ink-soft);text-decoration:none;">← Back to dashboard</a>
+          </div>
+        </div>
+
+        <div class="pp-body">
+          <div class="bnk-greeting" style="margin-bottom:0.3rem;">Program Performance</div>
+          <div style="font-size:0.86rem;color:var(--ink-soft);margin-bottom:1.4rem;max-width:70ch;">
+            ${ppLiveBadge(true)} Couldn't reach the live APMetrics endpoint${errorMessage ? ` (${errorMessage})` : ""} — showing simulated fallback data below instead.
+          </div>
+
+          <div class="pp-kpi-grid">
+            <div class="pp-kpi-card">
+              <div class="pp-kpi-label">Offers served (12 wks)</div>
+              <div class="pp-kpi-value">${headline.totalServed.toLocaleString()}</div>
+              <div class="pp-kpi-sub">Across web, mobile, and agent-assisted channels</div>
+            </div>
+            <div class="pp-kpi-card">
+              <div class="pp-kpi-label">CDH acceptance rate</div>
+              <div class="pp-kpi-value">${fmtPct(headline.overallRate)}</div>
+              <div class="pp-kpi-sub">vs. ${fmtPct(headline.avgBaseline)} non-personalized baseline</div>
+            </div>
+            <div class="pp-kpi-card">
+              <div class="pp-kpi-label">Lift vs. baseline</div>
+              <div class="pp-kpi-value" style="color:var(--success);">+${headline.liftPct.toFixed(0)}%</div>
+              <div class="pp-kpi-sub positive">Relative improvement in acceptance rate</div>
+            </div>
+            <div class="pp-kpi-card">
+              <div class="pp-kpi-label">Estimated incremental value</div>
+              <div class="pp-kpi-value">${fmtMoney(headline.totalRevenue)}</div>
+              <div class="pp-kpi-sub">Illustrative — see methodology note below</div>
+            </div>
+          </div>
+
+          <div class="pp-section-grid">
+            <div class="bnk-sidebar-panel">
+              <div class="bnk-sidebar-panel-header"><div class="bnk-sidebar-panel-title">${icon("trendingUp", 15)} Acceptance rate trend — CDH vs. baseline</div></div>
+              ${ppLineChart(weeklySeries)}
+            </div>
+            <div class="bnk-sidebar-panel">
+              <div class="bnk-sidebar-panel-header"><div class="bnk-sidebar-panel-title">${icon("smartphone", 15)} Acceptance rate by channel</div></div>
+              ${ppBarChart(channels, { labelKey: "channel", valueKey: "rate" })}
+            </div>
+          </div>
+
+          <div class="pp-section-grid">
+            <div class="bnk-sidebar-panel">
+              <div class="bnk-sidebar-panel-header"><div class="bnk-sidebar-panel-title">${icon("landmark", 15)} Acceptance rate by proposition group</div></div>
+              ${ppBarChart(journeys, { labelKey: "group", valueKey: "rate" })}
+            </div>
+            <div class="bnk-sidebar-panel">
+              <div class="bnk-sidebar-panel-header"><div class="bnk-sidebar-panel-title">${icon("shieldCheck", 15)} Top performing offers</div></div>
+              <table class="pp-table">
+                <thead><tr><th>Offer</th><th class="pp-num">Sent</th><th class="pp-num">Rate</th></tr></thead>
+                <tbody>
+                  ${topOffers.map(o => `<tr><td>${o.title}<div style="font-size:0.68rem;color:var(--ink-soft);">${o.treatmentId}</div></td><td class="pp-num">${o.sent.toLocaleString()}</td><td class="pp-num">${fmtPct(o.rate)}</td></tr>`).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="pp-methodology">
+            <strong>Methodology note:</strong> this dashboard is simulated, seeded demo data — it is not aggregated from the six named customers in this app (that's far too small a sample to represent a program). It's meant to illustrate the kind of program-level reporting a real Pega CDH deployment produces from live interaction history, not a computed result from anything else in this demo. The baseline acceptance rate, per-journey average deal values, and channel-mix assumptions are illustrative placeholders, not derived from any real pricing or benchmark data. Numbers are deterministic (same seed every load), not freshly randomized on each visit.
+          </div>
+        </div>
+      </div>`;
+  }
+
+  (async () => {
+    try {
+      const data = await fetchAPMetrics();
+      renderLive(data);
+    } catch (err) {
+      console.error("APMetrics fetch failed, falling back to simulated data:", err.message);
+      renderSimulated(err.message);
+    }
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instellars — Calculators</title>
+<link rel="stylesheet" href="css/app.css" />
+<style>
+  .bnk-calc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; max-width: 1000px; margin: 0 auto; }
+  .bnk-calc-card {
+    background: var(--white); border: 1px solid var(--rule); border-radius: 8px; padding: 1.3rem; text-decoration: none; display: block; color: inherit;
+    box-shadow: 0 1px 4px -1px rgba(14,18,48,0.14);
+    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .bnk-calc-card:hover { border-color: var(--brass); transform: translateY(-2px); box-shadow: 0 10px 22px -10px rgba(14,18,48,0.26); }
+  .bnk-calc-card-icon {
+    width: 40px; height: 40px; border-radius: 10px; background: var(--brass-soft); color: #1E40AF;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 0.9rem;
+  }
+  .bnk-calc-card-title { font-size: 1rem; font-weight: 600; color: var(--ink); margin-bottom: 0.4rem; }
+  .bnk-calc-card-sub { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.45; }
+  .bnk-calc-result {
+    margin-top: 1.3rem; background: var(--brass-soft); border-radius: 8px; padding: 1.1rem 1.3rem;
+  }
+  .bnk-calc-result-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #1E40AF; margin-bottom: 0.3rem; }
+  .bnk-calc-result-value { font-size: 1.6rem; font-weight: 700; color: var(--ink); margin-bottom: 0.2rem; }
+  .bnk-calc-result-note { font-size: 0.78rem; color: var(--ink-soft); }
+  .bnk-calc-signal {
+    margin-top: 0.9rem; border: 1px dashed var(--rule); border-radius: 8px; padding: 0.8rem 1rem; font-size: 0.76rem; color: var(--ink-soft); line-height: 1.5;
+  }
+  .bnk-calc-signal code { background: var(--paper-alt); padding: 0.05rem 0.3rem; border-radius: 3px; font-size: 0.74rem; }
+  .bnk-calc-back { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; color: var(--ink-soft); text-decoration: none; margin-bottom: 1rem; }
+  .bnk-calc-back:hover { color: var(--brass); }
+</style>
+</head>
+<body>
+<div id="app" class="bnk-root"></div>
+
+<script src="js/data.js"></script>
+<script src="js/cdh.js"></script>
+<script src="js/session.js"></script>
+<script src="js/behavioral.js"></script>
+<script>
+  // Loan/EMI-style and card-intent-style calculators, open to any visitor
+  // (logged in or not) — matches how real bank calculator tools work. The
+  // four here (Balance Transfer, Rewards Estimator, Travel/Miles, EMI) are
+  // deliberately the same four trigger names already described in Leo
+  // Marchetti's "In-Market Card Intent" journey (js/data.js, §141/§142) —
+  // using one now sends a real Tealium event carrying the calculator's
+  // inputs/outputs, the same way any other intent signal in this app flows
+  // to Tealium. In a real deployment that event reaches Pega and is what
+  // would actually drive that journey's next-best-action; this demo doesn't
+  // fake a local "offer just appeared" moment after calculating — the
+  // existing Container API call (already wired for Leo, live-first with a
+  // cached fallback) is the one true path an offer can surface through here,
+  // same as everywhere else in this app.
+  const session = loadSession();
+  const loggedInCustomer = session.customerId ? CUSTOMERS.find(c => c.id === session.customerId) : null;
+
+  const params = new URLSearchParams(window.location.search);
+  const calcType = params.get("calc");
+
+  const CALCULATORS = {
+    "balance-transfer": {
+      title: "Balance Transfer Calculator",
+      sub: "See how much interest you could save by moving an existing card balance to Instellars.",
+      icon: "refreshCw",
+      fallbackCustomerId: CARD_INTENT_CUSTOMER_ID,
+      eventName: "balance_transfer_calculator_used",
+      fields: [
+        { key: "balance", label: "Outstanding balance ($)", placeholder: "4200", type: "number" },
+        { key: "apr", label: "Current card APR (%)", placeholder: "24.99", type: "number" },
+      ],
+      calculate: (v) => {
+        const balance = parseFloat(v.balance) || 0;
+        const apr = parseFloat(v.apr) || 0;
+        const monthsPromo = 15;
+        const interestAtCurrentApr = balance * (apr / 100) * (monthsPromo / 12);
+        return {
+          headline: `$${interestAtCurrentApr.toFixed(2)}`,
+          headlineLabel: `Estimated interest you'd save over ${monthsPromo} months`,
+          note: `Based on a $${balance.toFixed(2)} balance at ${apr.toFixed(2)}% APR, vs. Instellars' 0% intro APR for ${monthsPromo} months.`,
+          linkFields: { outstanding_balance: balance, current_apr: apr, estimated_interest_saved: +interestAtCurrentApr.toFixed(2) },
+        };
+      },
+    },
+    "rewards-estimator": {
+      title: "Rewards Estimator",
+      sub: "Enter your monthly spend by category to see which card variant pays you back the most.",
+      icon: "piggyBank",
+      fallbackCustomerId: CARD_INTENT_CUSTOMER_ID,
+      eventName: "rewards_estimator_used",
+      fields: [
+        { key: "groceries", label: "Groceries ($/mo)", placeholder: "400", type: "number" },
+        { key: "dining", label: "Dining ($/mo)", placeholder: "250", type: "number" },
+        { key: "travel", label: "Travel ($/mo)", placeholder: "150", type: "number" },
+        { key: "fuel", label: "Fuel ($/mo)", placeholder: "120", type: "number" },
+        { key: "other", label: "Other ($/mo)", placeholder: "300", type: "number" },
+      ],
+      calculate: (v) => {
+        const cat = {
+          groceries: { amount: parseFloat(v.groceries) || 0, rate: 0.03 },
+          dining: { amount: parseFloat(v.dining) || 0, rate: 0.03 },
+          travel: { amount: parseFloat(v.travel) || 0, rate: 0.02 },
+          fuel: { amount: parseFloat(v.fuel) || 0, rate: 0.03 },
+          other: { amount: parseFloat(v.other) || 0, rate: 0.01 },
+        };
+        const totalMonthlySpend = Object.values(cat).reduce((sum, c) => sum + c.amount, 0);
+        const dominant = Object.entries(cat).sort((a, b) => b[1].amount - a[1].amount)[0][0];
+        const annualCashback = Object.values(cat).reduce((sum, c) => sum + c.amount * c.rate, 0) * 12;
+        return {
+          headline: `$${annualCashback.toFixed(2)}`,
+          headlineLabel: "Estimated cashback per year",
+          note: `Total monthly spend: $${totalMonthlySpend.toFixed(2)} · dominant category: ${dominant}.`,
+          linkFields: { dominant_spend_category: dominant, total_monthly_spend: +totalMonthlySpend.toFixed(2), estimated_annual_cashback: +annualCashback.toFixed(2) },
+        };
+      },
+    },
+    "travel-miles": {
+      title: "Travel / Miles Calculator",
+      sub: "See how many miles you could earn a year on your regular spending.",
+      icon: "send",
+      fallbackCustomerId: CARD_INTENT_CUSTOMER_ID,
+      eventName: "travel_calculator_used",
+      fields: [
+        { key: "monthlySpend", label: "Average monthly spend ($)", placeholder: "1800", type: "number" },
+      ],
+      calculate: (v) => {
+        const monthlySpend = parseFloat(v.monthlySpend) || 0;
+        const milesPerDollar = 2;
+        const annualMiles = monthlySpend * 12 * milesPerDollar;
+        const redemptionValue = annualMiles * 0.01;
+        return {
+          headline: annualMiles.toLocaleString(),
+          headlineLabel: "Estimated miles per year",
+          note: `Worth roughly $${redemptionValue.toFixed(2)} at typical redemption value, at ${milesPerDollar}x miles per $1 spent.`,
+          linkFields: { average_monthly_spend: monthlySpend, estimated_annual_miles: Math.round(annualMiles), estimated_redemption_value: +redemptionValue.toFixed(2) },
+        };
+      },
+    },
+    "emi-installment": {
+      title: "EMI / Installment Calculator",
+      sub: "Work out the monthly installment on a big-ticket purchase before you buy.",
+      icon: "creditCard",
+      fallbackCustomerId: CARD_INTENT_CUSTOMER_ID,
+      eventName: "emi_calculator_used",
+      fields: [
+        { key: "amount", label: "Purchase amount ($)", placeholder: "3000", type: "number" },
+        { key: "tenure", label: "Tenure (months)", placeholder: "12", type: "number" },
+        { key: "rate", label: "Annual interest rate (%)", placeholder: "14", type: "number" },
+      ],
+      calculate: (v) => {
+        const principal = parseFloat(v.amount) || 0;
+        const tenureMonths = parseFloat(v.tenure) || 1;
+        const annualRate = parseFloat(v.rate) || 0;
+        const monthlyRate = annualRate / 100 / 12;
+        const emi = monthlyRate === 0
+          ? principal / tenureMonths
+          : (principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths)) / (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+        const totalInterest = emi * tenureMonths - principal;
+        return {
+          headline: `$${emi.toFixed(2)}`,
+          headlineLabel: "Estimated monthly installment",
+          note: `Over ${tenureMonths} months on a $${principal.toFixed(2)} purchase — total interest ≈ $${Math.max(totalInterest, 0).toFixed(2)}.`,
+          linkFields: { purchase_amount: principal, tenure_months: tenureMonths, estimated_monthly_emi: +emi.toFixed(2) },
+        };
+      },
+    },
+    // Personal Loan and Home Loan calculators — same request pattern as the
+    // first four (§145), this time tied to Naomi Fletcher's "In-Market Loan
+    // Intent" journey (js/data.js, §144) rather than Leo's. Both source
+    // journey actions explicitly reference "the personal-loan calculator"/
+    // "the home-loan calculator" in their own Suitability text (see
+    // js/data.js's comment above those OFFER_CATALOG entries), so these are
+    // built as the real tools those actions describe, not new inventions.
+    "personal-loan": {
+      title: "Personal Loan Calculator",
+      sub: "See your estimated monthly payment on a personal loan before you apply.",
+      icon: "briefcase",
+      fallbackCustomerId: LOAN_INTENT_CUSTOMER_ID,
+      eventName: "personal_loan_calculator_used",
+      fields: [
+        { key: "amount", label: "Loan amount ($)", placeholder: "15000", type: "number" },
+        { key: "tenure", label: "Tenure (months)", placeholder: "36", type: "number" },
+        { key: "rate", label: "Annual interest rate (%)", placeholder: "11.5", type: "number" },
+      ],
+      calculate: (v) => {
+        const principal = parseFloat(v.amount) || 0;
+        const tenureMonths = parseFloat(v.tenure) || 1;
+        const annualRate = parseFloat(v.rate) || 0;
+        const monthlyRate = annualRate / 100 / 12;
+        const payment = monthlyRate === 0
+          ? principal / tenureMonths
+          : (principal * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths)) / (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+        const totalInterest = payment * tenureMonths - principal;
+        return {
+          headline: `$${payment.toFixed(2)}`,
+          headlineLabel: "Estimated monthly payment",
+          note: `Over ${tenureMonths} months on a $${principal.toFixed(2)} loan — total interest ≈ $${Math.max(totalInterest, 0).toFixed(2)}.`,
+          linkFields: { loan_amount: principal, tenure_months: tenureMonths, estimated_monthly_payment: +payment.toFixed(2) },
+        };
+      },
+    },
+    "home-loan": {
+      title: "Home Loan Calculator",
+      sub: "Estimate your monthly mortgage payment and see what you could be pre-qualified for.",
+      icon: "landmark",
+      fallbackCustomerId: LOAN_INTENT_CUSTOMER_ID,
+      eventName: "home_loan_calculator_used",
+      fields: [
+        { key: "propertyValue", label: "Property value ($)", placeholder: "350000", type: "number" },
+        { key: "downPayment", label: "Down payment ($)", placeholder: "70000", type: "number" },
+        { key: "tenureYears", label: "Loan tenure (years)", placeholder: "30", type: "number" },
+        { key: "rate", label: "Annual interest rate (%)", placeholder: "6.5", type: "number" },
+      ],
+      calculate: (v) => {
+        const propertyValue = parseFloat(v.propertyValue) || 0;
+        const downPayment = parseFloat(v.downPayment) || 0;
+        const tenureYears = parseFloat(v.tenureYears) || 1;
+        const annualRate = parseFloat(v.rate) || 0;
+        const loanAmount = Math.max(propertyValue - downPayment, 0);
+        const tenureMonths = tenureYears * 12;
+        const monthlyRate = annualRate / 100 / 12;
+        const payment = monthlyRate === 0
+          ? loanAmount / tenureMonths
+          : (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, tenureMonths)) / (Math.pow(1 + monthlyRate, tenureMonths) - 1);
+        const totalInterest = payment * tenureMonths - loanAmount;
+        return {
+          headline: `$${payment.toFixed(2)}`,
+          headlineLabel: "Estimated monthly mortgage payment",
+          note: `On a $${loanAmount.toFixed(2)} loan (${tenureYears}-year term) — total interest ≈ $${Math.max(totalInterest, 0).toFixed(2)}.`,
+          linkFields: { loan_amount: loanAmount, property_value: propertyValue, tenure_years: tenureYears, estimated_monthly_payment: +payment.toFixed(2) },
+        };
+      },
+    },
+  };
+
+  // No real customer is logged in for an anonymous visitor, so — same
+  // convention as new-customer-application.html's use of Sam's id (CUST44)
+  // as a stand-in for a prospect with no record yet — the Tealium payload
+  // falls back to whichever persona this app already has wired to respond
+  // to the selected calculator's signals: Leo (card calculators) or Naomi
+  // (loan calculators), read from that calculator's own fallbackCustomerId.
+  // The hub page (no calculator selected yet) has no natural persona, so it
+  // falls back to Leo arbitrarily. Nothing is written to that persona's own
+  // session/ledger from this fallback path though — only a genuinely
+  // logged-in visitor's own session gets a ledger entry, below.
+  const activeCalc = calcType ? CALCULATORS[calcType] : null;
+  const fallbackCustomerId = activeCalc ? activeCalc.fallbackCustomerId : CARD_INTENT_CUSTOMER_ID;
+  const customer = loggedInCustomer || CUSTOMERS.find(c => c.id === fallbackCustomerId);
+
+  // Loaded on page load now, not lazily on the first "Calculate" click —
+  // window.utag_data is set BEFORE the script tag is inserted (utag.js reads
+  // whatever's already there as part of its own load-time init, so setting
+  // fields after it loads misses that — see calc-field value fix above for
+  // the same lesson learned live). Fires an initial utag.view() page view
+  // for the hub or whichever calculator's page (calc_type is null on the
+  // hub) once the script is ready, same as enableTealiumAnalytics/
+  // enableLoginTealiumAnalytics elsewhere in this app loading early rather
+  // than waiting for a user action.
+  window.utag_data = window.utag_data || {};
+  window.utag_data.customer_id = customer.id;
+  window.utag_data.calculator_type = calcType || null;
+  window.utag_data.event_name = "PageView";
+
+  let utagReadyResolve = null;
+  const utagReady = new Promise((resolve) => { utagReadyResolve = resolve; });
+
+  (function loadUtagOnPageLoad() {
+    if (window.utag) {
+      window.utag.view(window.utag_data);
+      utagReadyResolve();
+      return;
+    }
+    const b = document, c = "script", d = b.createElement(c);
+    d.src = "https://tags.tiqcdn.com/utag/instellars-sandbox/abhishek.banerjee/prod/utag.js";
+    d.type = "text/java" + c;
+    d.async = true;
+    d.onload = () => {
+      window.utag.view(window.utag_data);
+      utagReadyResolve();
+    };
+    d.onerror = () => {
+      console.error("Tealium utag.js failed to load — calculator events will not be sent.");
+      utagReadyResolve(); // resolve anyway so a "Calculate" click doesn't hang forever waiting
+    };
+    const r = b.getElementsByTagName(c)[0];
+    r.parentNode.insertBefore(d, r);
+  })();
+
+  // Fires the calculator-specific link() event on "Calculate" — awaits
+  // utagReady in case the customer clicks before the page-load script
+  // finish (fast click on a slow connection); already resolved in the
+  // common case, so this is normally an instant no-op wait.
+  // Same utag.link() payload shape as new-customer-application.html's
+  // fireTealiumViewAndLink — event_name, product_type, customer_id,
+  // page_active_time, PercentageProgress — only event_name (and the values
+  // of product_type/customer_id) differ per calculator, per direct request.
+  async function fireCalculatorTealiumEvent(calc, calcKey, result) {
+    await utagReady;
+    if (!window.utag) return null;
+    window.utag_data.calculator_type = calcKey;
+    const linkPayload = {
+      event_name: calc.eventName,
+      product_type: calc.title,
+      customer_id: customer.id,
+      page_active_time: 30,
+      PercentageProgress: 60,
+    };
+    window.utag.link(linkPayload);
+    return linkPayload;
+  }
+
+  function renderHub() {
+    const cardsHtml = Object.entries(CALCULATORS).map(([key, calc]) => `
+      <a class="bnk-calc-card" href="calculators.html?calc=${encodeURIComponent(key)}">
+        <div class="bnk-calc-card-icon">${icon(calc.icon, 20)}</div>
+        <div class="bnk-calc-card-title">${calc.title}</div>
+        <div class="bnk-calc-card-sub">${calc.sub}</div>
+      </a>`).join("");
+    return `
+      <div class="bnk-display" style="font-size:1.2rem;margin-bottom:0.4rem;">Calculators</div>
+      <div style="font-size:0.85rem;color:var(--ink-soft);max-width:640px;margin-bottom:1.6rem;">
+        Try any of the tools below — Instellars uses what you enter to help match you with the right card or loan, same as a real banker would.
+      </div>
+      <div class="bnk-calc-grid">${cardsHtml}</div>`;
+  }
+
+  let lastResult = null;
+  let lastSignal = null;
+
+  function renderCalculator(key) {
+    const calc = CALCULATORS[key];
+    if (!calc) return renderHub();
+    // Pre-filled with the placeholder's own value (not just shown as ghost
+    // text) so clicking Calculate works immediately without typing anything
+    // first — a bug caught from a real user report: the placeholder numbers
+    // looked like entered values, but a plain HTML placeholder contributes
+    // nothing to .value, so clicking Calculate untouched silently computed
+    // against empty inputs and produced an unremarkable $0.00, which read as
+    // "nothing happened."
+    const fieldsHtml = calc.fields.map(f => `
+      <div class="bnk-form-group">
+        <label class="bnk-form-label">${f.label}</label>
+        <input class="bnk-form-input" id="calc-field-${f.key}" type="${f.type}" placeholder="${f.placeholder}" value="${f.placeholder}" oninput="handleCalcFieldInput()" />
+      </div>`).join("");
+
+    const resultHtml = lastResult ? `
+      <div class="bnk-calc-result">
+        <div class="bnk-calc-result-label">${lastResult.headlineLabel}</div>
+        <div class="bnk-calc-result-value">${lastResult.headline}</div>
+        <div class="bnk-calc-result-note">${lastResult.note}</div>
+      </div>
+      <div class="bnk-calc-signal">
+        Intent signal sent to Tealium as <code>${calc.eventName}</code> for customer <code>${customer.id}</code>${loggedInCustomer ? "" : ` (anonymous visitor — using ${customer.name}'s id as a stand-in, same as this app's other anonymous-prospect flows)`}. In a live deployment this reaches Pega and drives that journey's next-best-action from there.
+      </div>` : "";
+
+    return `
+      <a class="bnk-calc-back" href="calculators.html">${icon("chevronLeft", 14)} All calculators</a>
+      <div class="bnk-application-panel">
+        <div class="bnk-display" style="font-size:1.2rem;margin-bottom:0.3rem;">${calc.title}</div>
+        <div style="font-size:0.82rem;color:var(--ink-soft);margin-bottom:1.2rem;">${calc.sub}</div>
+        ${fieldsHtml}
+        <div class="bnk-application-actions">
+          <span></span>
+          <button class="bnk-btn-primary" id="calc-submit-btn" style="flex:none;padding:0.6rem 1.4rem;" onclick="handleCalculate('${key}')">Calculate</button>
+        </div>
+        ${resultHtml}
+      </div>`;
+  }
+
+  function renderBody() {
+    const inner = calcType && CALCULATORS[calcType] ? renderCalculator(calcType) : renderHub();
+    return `
+      <div>
+        <div class="bnk-header">
+          <div class="bnk-brand" style="margin-bottom:0;">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+          <div class="bnk-header-right">
+            <span style="font-size:0.85rem;">Calculators</span>
+            <a class="bnk-signout-btn" style="text-decoration:none;" href="${loggedInCustomer ? `dashboard.html?customer=${encodeURIComponent(loggedInCustomer.id)}` : "browse.html"}">${icon("x", 14)}<span> Exit</span></a>
+          </div>
+        </div>
+        <div class="bnk-body">${inner}</div>
+      </div>`;
+  }
+
+  function paint() {
+    document.getElementById("app").innerHTML = renderBody();
+  }
+
+  window.handleCalcFieldInput = function () {
+    // Typing after a result is showing invalidates it — re-calculate to get
+    // a fresh signal rather than leaving a stale result on screen.
+    if (lastResult) {
+      lastResult = null;
+      paint();
+    }
+  };
+
+  window.handleCalculate = async function (key) {
+    const calc = CALCULATORS[key];
+    const values = {};
+    calc.fields.forEach(f => {
+      values[f.key] = document.getElementById(`calc-field-${f.key}`)?.value || "";
+    });
+    const result = calc.calculate(values);
+    lastResult = result;
+    paint();
+    // Re-read the field values back in after repainting (innerHTML rebuild
+    // wipes live input state) so the numbers the customer just entered stay
+    // visible next to their result instead of resetting to blank.
+    calc.fields.forEach(f => {
+      const el = document.getElementById(`calc-field-${f.key}`);
+      if (el) el.value = values[f.key];
+    });
+    const btn = document.getElementById("calc-submit-btn");
+    if (btn) { btn.disabled = true; btn.textContent = "Sending…"; }
+    await fireCalculatorTealiumEvent(calc, key, result);
+    if (loggedInCustomer) {
+      const freshSession = loadSession();
+      pushSessionLog(freshSession, "system", `Calculator used — "${calc.title}" — intent signal sent to Tealium (event: ${calc.eventName})`);
+      saveSession(freshSession);
+    }
+    paint();
+    calc.fields.forEach(f => {
+      const el = document.getElementById(`calc-field-${f.key}`);
+      if (el) el.value = values[f.key];
+    });
+  };
+
+  paint();
+</script>
+</body>
+</html>

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<!-- Segment Analytics — disabled on this screen (only active on the New Application wizard\'s Abandoned Application / Confirmation stage). <script>   !function(){var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/" + key + "/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="rXdBVA5oE27vBDqifUzSmXs2K3pHoD8R";;analytics.SNIPPET_VERSION="5.2.0";   analytics.load("rXdBVA5oE27vBDqifUzSmXs2K3pHoD8R");   analytics.page();   }}(); </script> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instellars — Sign In</title>
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+<div id="app" class="bnk-root"></div>
+
+<script src="js/data.js"></script>
+<script src="js/cdh.js"></script>
+<script src="js/session.js"></script>
+<script src="js/behavioral.js"></script>
+<script>
+  // Hand-built, matching this project's established illustration convention
+  // (no stock photography — see browse.html's own hero graphic) — a small
+  // stack of offer-card mockups echoing the actual Decision Receipt cards
+  // shown once logged in, so the sign-in screen previews the real product
+  // rather than generic decoration. Colors deliberately avoid #0E1230 fills
+  // (the login panel's own background), unlike browse.html's illustration
+  // which was built for its lighter gradient hero box and would go
+  // invisible-in-patches on this screen's solid navy.
+  const LOGIN_ILLUSTRATION_SVG = `<svg viewBox="0 0 380 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Illustration of a personalized offer card">
+    <defs>
+      <filter id="loginCardShadow" x="-40%" y="-40%" width="180%" height="180%">
+        <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#03040F" flood-opacity="0.45"/>
+      </filter>
+      <radialGradient id="loginGlow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#8F7FE8" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#8F7FE8" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="190" cy="170" r="150" fill="url(#loginGlow)" opacity="0.5"/>
+    <g transform="rotate(-8 190 170)">
+      <rect x="90" y="60" width="210" height="130" rx="16" fill="#1c2560" stroke="#3A4180" stroke-width="1"/>
+    </g>
+    <g filter="url(#loginCardShadow)">
+      <g transform="rotate(4 190 170)">
+        <rect x="60" y="95" width="230" height="150" rx="16" fill="#FFFFFF"/>
+        <circle cx="94" cy="129" r="16" fill="#DBEAFE"/>
+        <path d="M86 133 L86 124 L94 118 L102 124 L102 133 Z M89 133 L89 127 L99 127 L99 133" stroke="#1E40AF" stroke-width="1.6" fill="none" stroke-linejoin="round"/>
+        <text x="120" y="122" font-family="Arial, sans-serif" font-size="9" font-weight="700" letter-spacing="0.5" fill="#2563EB">PERSONALIZED OFFER</text>
+        <text x="120" y="139" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#0E1230">Pre-Approved Loan</text>
+        <rect x="78" y="159" width="196" height="6" rx="3" fill="#E7E7EF"/>
+        <rect x="78" y="171" width="150" height="6" rx="3" fill="#E7E7EF"/>
+        <rect x="78" y="196" width="130" height="26" rx="7" fill="#0E1230"/>
+        <path d="M91 209 L96 214 L106 203" stroke="#FFFFFF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="115" y="213" font-family="Arial, sans-serif" font-size="10" font-weight="600" fill="#FFFFFF">View offer</text>
+        <rect x="220" y="196" width="54" height="26" rx="7" fill="none" stroke="#CBCBDA" stroke-width="1.5"/>
+      </g>
+    </g>
+    <g transform="translate(272,74)">
+      <circle r="19" fill="#F3D896"/>
+      <circle r="19" fill="none" stroke="#C99A3D" stroke-width="1.5"/>
+      <path d="M-7 1 L-2 6 L8 -6" stroke="#7A4A0E" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </svg>`;
+
+  function renderLogin() {
+    const cards = CUSTOMERS.map(c => {
+      const cardHtml = `
+      <a class="bnk-customer-card" href="dashboard.html?customer=${encodeURIComponent(c.id)}" onclick="selectCustomer('${c.id}'); return true;" style="text-decoration:none;">
+        <div class="bnk-avatar">${c.initials}</div>
+        <div style="flex:1;text-align:left;">
+          <div class="bnk-customer-name">${c.name}</div>
+          <div class="bnk-customer-meta">
+            <span class="bnk-segment-pill">${c.segment}</span>
+            <span class="bnk-mono bnk-customer-meta-num">${c.tenureYears}yr tenure</span>
+          </div>
+        </div>
+        <span style="opacity:0.5;transform:rotate(-90deg);">${icon("chevronDown", 16)}</span>
+      </a>`;
+      // Robert only, "for now" — replaces the same toggle that used to live
+      // on his dashboard (see DEVELOPER_HANDOVER.md §137/§138). Rendered as
+      // its own row below his card, not nested inside the <a>, so clicking
+      // the checkbox doesn't also trigger the card's own navigation.
+      // Applied in selectCustomer() below, since that function rebuilds the
+      // whole session from scratch on every login.
+      if (c.id === PRIYA_CUSTOMER_ID) {
+        return cardHtml + `
+      <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:var(--ink-soft);margin:-0.4rem 0 0.6rem 0.2rem;cursor:pointer;">
+        <input type="checkbox" id="robertBrazeToggle" onclick="event.stopPropagation()" />
+        Use Braze Canvas + Banner (Robert only)
+      </label>`;
+      }
+      return cardHtml;
+    }).join("");
+
+    return `
+      <div class="bnk-login-wrap">
+        <div class="bnk-login-left">
+          <svg class="bnk-constellation" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice">
+            <line x1="70" y1="90" x2="160" y2="60" /><line x1="160" y1="60" x2="230" y2="130" /><line x1="230" y1="130" x2="340" y2="80" />
+            <line x1="340" y1="80" x2="420" y2="150" /><line x1="120" y1="260" x2="210" y2="230" /><line x1="210" y1="230" x2="280" y2="300" />
+            <line x1="280" y1="300" x2="380" y2="270" /><line x1="60" y1="380" x2="150" y2="360" /><line x1="150" y1="360" x2="230" y2="420" />
+            <circle cx="70" cy="90" r="2.4" /><circle cx="160" cy="60" r="1.8" /><circle cx="230" cy="130" r="2.4" />
+            <circle cx="340" cy="80" r="1.8" /><circle cx="420" cy="150" r="2.4" /><circle cx="120" cy="260" r="1.8" />
+            <circle cx="210" cy="230" r="2.4" /><circle cx="280" cy="300" r="1.8" /><circle cx="380" cy="270" r="2.4" />
+            <circle cx="60" cy="380" r="1.8" /><circle cx="150" cy="360" r="2.4" /><circle cx="230" cy="420" r="1.8" />
+          </svg>
+          <div class="bnk-brand">${icon("landmark", 22)}<span class="bnk-brand-word">Instellars</span></div>
+          <h1 class="bnk-display bnk-login-headline">Decide smarter. Engage better. Convert faster.</h1>
+          <p class="bnk-login-sub">This is a demo banking site wired to Instellars' Real-Time Engagement Engine, built on Pega Customer Decision Hub. Pick a customer profile to see how offers, ranking, and arbitration change per person.</p>
+          <div class="bnk-login-illustration">${LOGIN_ILLUSTRATION_SVG}</div>
+        </div>
+        <div class="bnk-login-right">
+          <div class="bnk-display bnk-login-right-title">Choose a demo customer</div>
+          <div class="bnk-login-right-sub">Each profile drives different eligibility and scoring.</div>
+          ${cards}
+        </div>
+      </div>`;
+  }
+
+  // Selecting a customer resets their session to a fresh state (matching the
+  // original app's behavior when switching profiles) before the real page
+  // navigation to dashboard.html happens.
+  function selectCustomer(id) {
+    const session = defaultSession();
+    session.customerId = id;
+    // Loan journey customers land on the Dashboard already positioned at
+    // the Prospect stage of their Personal Loan & Card Cross-Sell journey,
+    // rather than needing to click "Walk through journey" first.
+    if (isLoanCardJourneyCustomer(id)) {
+      session.currentJourneyId = "loan-card-crosssell";
+      session.currentStageIndex = 0;
+    } else if (id === "CUST101") {
+      // Aria lands directly on the Awareness stage of her Wealth Management
+      // & Advisory journey, same reasoning as above — and advances through
+      // it the same way, via maybeAdvanceJourneyStage (js/session.js), which
+      // was extended to cover this journey alongside loan-card-crosssell.
+      session.currentJourneyId = "wealth-management";
+      session.currentStageIndex = 0;
+    } else if (id === MAYA_CUSTOMER_ID && MAYA_ACTIVE_JOURNEY_ID === "digital-activation-onboarding") {
+      // Maya, same reasoning — lands directly on the Awareness stage of
+      // whichever journey MAYA_ACTIVE_JOURNEY_ID currently has her on. Only
+      // wired up for Digital Activation & Onboarding specifically, since
+      // that's the one with a stage-scoped Personalized Offers experience
+      // built for it; if MAYA_ACTIVE_JOURNEY_ID is toggled back to
+      // "loan-card-crosssell", isLoanCardJourneyCustomer(id) above already
+      // handles her correctly on its own.
+      session.currentJourneyId = "digital-activation-onboarding";
+      session.currentStageIndex = 0;
+    } else if (id === "C1004") {
+      // Diego, same reasoning — lands directly on the Discover stage of his
+      // Priority Banking Upgrade campaign journey, advancing the same
+      // "every offer in the stage must be handled" way as Aria/Maya via
+      // maybeAdvanceJourneyStage (js/session.js).
+      session.currentJourneyId = "priority-banking-upgrade";
+      session.currentStageIndex = 0;
+    } else if (id === "CUST44") {
+      // Sam, same reasoning as Aria/Maya/Diego above — lands directly on
+      // the Awareness stage of his New Customer Acquisition journey.
+      session.currentJourneyId = "new-customer-acquisition";
+      session.currentStageIndex = 0;
+    } else if (id === CARD_INTENT_CUSTOMER_ID) {
+      // Leo, same reasoning as Sam above — lands directly on the Awareness
+      // stage of his In-Market Card Intent journey.
+      session.currentJourneyId = "in-market-card-intent";
+      session.currentStageIndex = 0;
+    } else if (id === LOAN_INTENT_CUSTOMER_ID) {
+      // Naomi, same reasoning as Leo above — lands directly on the Awareness
+      // stage of her In-Market Loan Intent journey.
+      session.currentJourneyId = "in-market-loan-intent";
+      session.currentStageIndex = 0;
+    } else if (id === DIGITAL_DEEPENING_CUSTOMER_ID) {
+      // Maria, same reasoning as Maya/Naomi above — lands directly on the
+      // Low Digital stage of her Transaction & Digital Deepening journey.
+      session.currentJourneyId = "transaction-digital-deepening";
+      session.currentStageIndex = 0;
+    } else if (id === OFW_FAMILY_CUSTOMER_ID) {
+      // Angelica, same reasoning as Maya/Maria above — lands directly on the
+      // Receive stage of her OFW Family journey.
+      session.currentJourneyId = "ofw-family";
+      session.currentStageIndex = 0;
+    } else if (id === SME_CUSTOMER_ID) {
+      // Farah, same reasoning as Aria/Maya/Diego above — lands directly on
+      // the Awareness stage of her SME Cards & Payments journey.
+      session.currentJourneyId = "sme-cards-payments";
+      session.currentStageIndex = 0;
+    } else if (id === SME_LOYALTY_CUSTOMER_ID) {
+      // Carlos, same reasoning — SME Loyalty & Protection.
+      session.currentJourneyId = "sme-loyalty-protection";
+      session.currentStageIndex = 0;
+    } else if (id === SME_LENDING_CUSTOMER_ID) {
+      // Elena, same reasoning — SME Lending & Working Capital.
+      session.currentJourneyId = "sme-lending-working-capital";
+      session.currentStageIndex = 0;
+    } else if (id === SME_DIGITAL_BANKING_CUSTOMER_ID) {
+      // Daniela, same reasoning — SME Digital Banking & Cash Flow.
+      session.currentJourneyId = "sme-digital-banking-cashflow";
+      session.currentStageIndex = 0;
+    }
+    // Robert only — read here (not on dashboard.html anymore) since
+    // selectCustomer() rebuilds the session from scratch on every login,
+    // which would otherwise wipe out a toggle set from within the
+    // dashboard. Explicitly scoped to his id, not isLoanCardJourneyCustomer(id)
+    // above, so this never applies to Maya even while she's mapped onto his
+    // same journey.
+    if (id === PRIYA_CUSTOMER_ID) {
+      session.robertBrazeEnabled = !!document.getElementById("robertBrazeToggle")?.checked;
+    }
+    saveSession(session);
+    // Fire-and-forget, same as capture_response elsewhere — doesn't block
+    // the navigation to dashboard.html that's already underway.
+    const anonymousId = getOrCreateAnonymousCookieId();
+    sendIdMerge(id, anonymousId);
+  }
+
+  document.getElementById("app").innerHTML = renderLogin();
+</script>
+</body>
+</html>

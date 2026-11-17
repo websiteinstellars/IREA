@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Instellars Agent Desktop — Customer Service</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Brand - matched to the NexusBank Agent Desktop reference */
+      --brand:        #2563eb;
+      --brand-dark:   #1d4ed8;
+      --brand-light:  #dbeafe;
+      --panel-hdr:    #2563eb;
+      --pega-blue:    #1147a0;
+      --pega-mid:     #2563eb;
+      --pega-light:   #e8f0fe;
+      --pega-link:    #1a6fcf;
+      --navy:         #0e1230;
+      --navy-hover:   #1a2044;
+      --navy-active:  #253166;
+      --rail-bg:      #0e1230;
+      --rail-hover:   #1a2044;
+
+      /* Status */
+      --badge-intake-bg:  #ede9fb;
+      --badge-intake-fg:  #6b4fc7;
+      --badge-active-bg:  #e6f7ee;
+      --badge-active-fg:  #1a7a46;
+      --badge-due-fg:     #b91c1c;
+
+      /* Surface */
+      --surface:      #ffffff;
+      --bg:           #f3f5f8;
+      --border:       #dce2ec;
+      --border-light: #edf0f5;
+
+      /* Text */
+      --text-h:   #0d1b2e;
+      --text:     #2c3e55;
+      --text-sub: #56677e;
+      --text-dim: #8fa0b5;
+
+      /* CDH */
+      --cdh-bdr: #90caf9;
+
+      /* Layout */
+      --topbar-h: 44px;
+      --rail-w:   65px;
+      --panel-w:  480px;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.3;
+    }
+
+    /* ═══════════════════════════════════
+       TOP APP BAR
+    ═══════════════════════════════════ */
+    .topbar {
+      height: var(--topbar-h);
+      background: var(--navy);
+      border-bottom: 1px solid var(--navy);
+      display: flex;
+      align-items: center;
+      padding: 0 12px 0 0;
+      gap: 10px;
+      flex-shrink: 0;
+      z-index: 30;
+    }
+    .topbar-menu {
+      width: var(--rail-w);
+      height: var(--topbar-h);
+      display: flex; align-items: center; justify-content: center;
+      color: #7a95b0; cursor: pointer; flex-shrink: 0;
+    }
+    .topbar-menu:hover { color: #fff; }
+    .topbar-logo {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 19px; font-weight: 700; color: #fff;
+      flex-shrink: 0; margin-right: 4px;
+    }
+    .topbar-logo-app {
+      font-size: 16px; font-weight: 400; color: #9aabc4;
+    }
+    .topbar-spacer { flex: 1; }
+    .topbar-btn-train {
+      background: var(--brand); color: #fff;
+      border: none; border-radius: 20px;
+      padding: 6px 16px; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: .15s; white-space: nowrap;
+    }
+    .topbar-btn-train:hover { background: var(--brand-dark); }
+    .topbar-avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%; background: var(--pega-mid);
+      color: #fff; font-size: 14.5px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+    }
+
+    /* ═══════════════════════════════════
+       BODY ROW
+    ═══════════════════════════════════ */
+    .body-row {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ═══════════════════════════════════
+       NAV RAIL
+    ═══════════════════════════════════ */
+    .nav-rail {
+      width: var(--rail-w);
+      background: var(--rail-bg);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 6px 0 10px;
+      gap: 2px;
+      flex-shrink: 0;
+      z-index: 300;
+    }
+    .rail-icon {
+      width: 56px; height: 56px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #7a95b0;
+      transition: .15s;
+      position: relative;
+      gap: 2px;
+    }
+    .rail-icon svg { width: 16px; height: 16px; flex-shrink: 0; }
+    .rail-icon:hover { background: var(--rail-hover); color: #c8dcf0; }
+    .rail-icon.active {
+      background: var(--brand);
+      color: #fff;
+    }
+    .rail-icon .rail-label {
+      font-size: 11.5px; font-weight: 600; line-height: 1;
+      color: inherit;
+    }
+
+    .contacts-rail {
+      width: 230px;
+      background: var(--rail-bg);
+      display: flex;
+      flex-direction: column;
+      padding: 18px 0 10px;
+      flex-shrink: 0;
+      overflow-y: auto;
+      z-index: 300;
+    }
+    .contacts-rail-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      color: #6b7fa0;
+      padding: 0 18px 10px;
+    }
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px;
+      cursor: pointer;
+      text-decoration: none;
+      border-left: 3px solid transparent;
+      transition: .15s;
+    }
+    .contact-item:hover { background: var(--rail-hover); }
+    .contact-item.active {
+      background: var(--navy-active);
+      border-left-color: var(--brand);
+    }
+    .contact-item-avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: #34456b;
+      color: #cdd9ee;
+      font-size: 11px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .contact-item.active .contact-item-avatar {
+      background: var(--brand);
+      color: #fff;
+    }
+    .contact-item-name {
+      font-size: 13px; font-weight: 700;
+      color: #fff;
+      line-height: 1.3;
+    }
+    .contact-item-segment {
+      font-size: 11px;
+      color: #8497b8;
+      line-height: 1.3;
+    }
+
+    /* ═══════════════════════════════════
+       D365 LAYOUT
+    ═══════════════════════════════════ */
+    .d365-layout {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: var(--surface);
+    }
+
+    .d365-record-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .d365-record-icon {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #fff;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 13px;
+    }
+
+    .d365-record-name {
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text-h);
+    }
+
+    .d365-record-type {
+      font-size: 12px;
+      color: var(--text-sub);
+    }
+
+    .d365-highlights {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .d365-hl {
+      background: var(--bg);
+      padding: 7px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border-light);
+    }
+
+    .d365-hl-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+    }
+
+    .d365-hl-val {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-h);
+    }
+
+    .d365-hl-val.risk { color: #d32f2f; }
+    .d365-hl-val.good { color: #16a34a; }
+
+    .d365-bpf {
+      display: flex;
+      gap: 0;
+      margin-bottom: 10px;
+    }
+
+    .d365-bpf-stage {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 8px;
+      background: var(--bg);
+      border: 1px solid var(--border-light);
+      font-size: 12px;
+      color: var(--text-sub);
+      position: relative;
+    }
+
+    .d365-bpf-stage:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: -10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 0;
+      height: 0;
+      border-left: 5px solid var(--border-light);
+      border-top: 8px solid transparent;
+      border-bottom: 8px solid transparent;
+      z-index: 1;
+    }
+
+    .d365-bpf-stage.active {
+      background: linear-gradient(135deg, var(--brand-light), #e8eaf6);
+      border-color: var(--brand);
+      color: var(--brand);
+      font-weight: 600;
+    }
+
+    .d365-bpf-stage.done {
+      background: var(--bg);
+      color: var(--text-dim);
+    }
+
+    .d365-bpf-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    .d365-bpf-stage.active .d365-bpf-dot {
+      background: var(--brand);
+    }
+
+    .d365-bpf-stage.done .d365-bpf-dot {
+      background: #4caf50;
+    }
+
+    .d365-form-tabs {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .d365-form-tab {
+      padding: 8px 16px;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-sub);
+      transition: .15s;
+    }
+
+    .d365-form-tab.active {
+      border-bottom-color: var(--brand);
+      color: var(--brand);
+    }
+
+    .d365-form-tab:hover {
+      color: var(--text-h);
+    }
+
+    .d365-content-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      overflow: hidden;
+    }
+
+    .d365-form-area {
+      overflow-y: auto;
+      padding: 12px 20px;
+    }
+
+    .d365-section {
+      margin-bottom: 10px;
+    }
+
+    .d365-section-hdr {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 6px;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-h);
+      cursor: pointer;
+    }
+    .d365-section-hdr-title {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .d365-section-hdr-title svg { width: 14px; height: 14px; color: var(--text-sub); flex-shrink: 0; }
+
+    .d365-section-hdr svg {
+      width: 16px;
+      height: 16px;
+      color: var(--text-sub);
+      transition: transform .2s;
+    }
+
+    .d365-section-body {
+      display: block;
+    }
+
+    .d365-field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .d365-field {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .d365-field-label {
+      font-size: 11px;
+      color: var(--text-sub);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    .d365-field-val {
+      font-size: 13px;
+      color: var(--text-h);
+      font-weight: 500;
+    }
+
+    .d365-field-provenance {
+      font-size: 9.5px;
+      color: var(--text-dim);
+      margin-top: 2px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .d365-field-provenance .d365-prf-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4caf50;
+      flex-shrink: 0;
+    }
+
+    .d365-field-provenance.stale .d365-prf-dot {
+      background: #e0a030;
+    }
+
+    .d365-provenance-footnote {
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .d365-field-val.link {
+      color: var(--brand);
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    .d365-field-val.link:hover {
+      text-decoration: underline;
+    }
+
+    .d365-field-val.status-active {
+      color: #388e3c;
+      font-weight: 600;
+    }
+
+    .d365-accounts-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .d365-accounts-table th {
+      text-align: left;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: var(--text-sub);
+      padding: 0 8px 8px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .d365-accounts-table td {
+      font-size: 12.5px;
+      color: var(--text-h);
+      padding: 9px 8px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .d365-accounts-table tr:last-child td { border-bottom: none; }
+    .d365-accounts-table td.name { font-weight: 600; }
+    .d365-accounts-table td.status.active { color: #388e3c; font-weight: 600; }
+
+    .d365-side-area {
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      background: var(--bg);
+      border-left: 1px solid var(--border);
+    }
+
+    .d365-side-panel {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .d365-nba-header {
+      margin-bottom: 8px;
+    }
+
+    .d365-nba-live {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-size: 10.5px;
+      color: var(--text-sub);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .d365-nba-live-left { display: flex; align-items: center; gap: 6px; }
+
+    .d365-nba-live-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4caf50;
+      animation: pulse 2s infinite;
+    }
+
+    .d365-pega-pill {
+      background: var(--navy);
+      color: #fff;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      text-transform: none;
+      padding: 2px 9px;
+      border-radius: 10px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .d365-nba-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-h);
+      margin-bottom: 2px;
+    }
+
+    .d365-nba-sub {
+      font-size: 11px;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+    }
+
+    .d365-compliance-hdr {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-h);
+      margin-bottom: 12px;
+    }
+    .d365-compliance-hdr svg { width: 15px; height: 15px; color: var(--brand); flex-shrink: 0; }
+    .d365-compliance-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12.5px;
+      color: var(--text);
+      padding: 7px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .d365-compliance-row:last-child { border-bottom: none; }
+    .d365-compliance-val { font-weight: 600; color: var(--text-h); }
+    .d365-compliance-val.good { color: #16a34a; }
+    .d365-compliance-val.risk { color: #d32f2f; }
+
+    .d365-offer {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--brand);
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: .2s;
+    }
+
+    .d365-offer:hover {
+      border-color: var(--brand);
+      box-shadow: 0 2px 8px rgba(21, 101, 192, 0.12);
+    }
+
+    .d365-offer-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--brand);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+      margin-bottom: 8px;
+    }
+
+    .d365-offer-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-h);
+      margin-bottom: 4px;
+    }
+
+    .d365-offer-desc {
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-bottom: 8px;
+      line-height: 1.4;
+      white-space: pre-line;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .d365-offer-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .d365-offer-response-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding-top: 10px;
+      padding-bottom: 6px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .d365-offer-response-badge.accepted {
+      color: #1b5e20;
+    }
+
+    .d365-offer-response-badge.rejected {
+      color: #b71c1c;
+    }
+
+    .d365-offer-btn {
+      flex: 1;
+      padding: 6px 8px;
+      border: 1px solid transparent;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: .15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+    }
+
+    .d365-offer-btn.accept {
+      background: var(--navy);
+      color: #fff;
+    }
+
+    .d365-offer-btn.accept:hover {
+      background: var(--navy-hover);
+    }
+
+    .d365-offer-btn.maybe {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    .d365-offer-btn.maybe:hover {
+      background: var(--bg);
+      border-color: var(--text-dim);
+    }
+
+    .d365-offer-btn.reject {
+      background: var(--surface);
+      color: var(--badge-due-fg);
+      border-color: #f0c6c6;
+    }
+
+    .d365-offer-btn.reject:hover {
+      background: #fdf3f3;
+      border-color: #e0a3a3;
+    }
+
+    .d365-offer-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .d365-explain-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      background: none;
+      border: none;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      margin-top: 8px;
+      padding: 8px 2px 2px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--brand);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .d365-explain-panel {
+      margin-top: 6px;
+      padding: 8px 10px;
+      background: #fff;
+      border: 1px dashed var(--cdh-bdr);
+      border-radius: 4px;
+    }
+
+    .d365-explain-reason {
+      font-size: 11px;
+      font-style: italic;
+      color: var(--text-h);
+      line-height: 1.4;
+      margin-bottom: 6px;
+    }
+
+    .d365-explain-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-sub);
+      margin: 7px 0 3px;
+    }
+
+    .d365-explain-check-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 5px;
+      font-size: 11px;
+      padding: 1px 0;
+      color: var(--text-sub);
+    }
+
+    .d365-explain-check-glyph { flex-shrink: 0; font-weight: 700; }
+    .d365-check-pass .d365-explain-check-glyph { color: #1b5e20; }
+    .d365-check-fail .d365-explain-check-glyph { color: #b71c1c; }
+    .d365-check-unknown .d365-explain-check-glyph { color: var(--text-dim); }
+
+    .d365-explain-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      padding: 1px 0;
+      color: var(--text-sub);
+      gap: 8px;
+    }
+    /* Label stays its natural width; the value column gets the rest of
+       the row and can shrink below its own content width to actually
+       wrap (flex items default to min-width:auto — without this a long
+       value overflowed the panel instead of wrapping onto a second
+       line). */
+    .d365-explain-row span:first-child { flex-shrink: 0; }
+    .d365-explain-row span:last-child { color: var(--text-h); font-weight: 600; flex: 1; min-width: 0; text-align: right; overflow-wrap: break-word; word-break: break-word; }
+    .d365-gov-status-live { color: #1b5e20; }
+    .d365-gov-status-review { color: #a06000; }
+    .d365-gov-unregistered { font-size: 11px; color: #a06000; background: #fff3e0; border-radius: 4px; padding: 6px 8px; line-height: 1.4; }
+    .d365-gov-history { margin-top: 5px; }
+    .d365-gov-history-row { display: grid; grid-template-columns: 1.8rem 1fr auto; gap: 5px; font-size: 10px; color: var(--text-sub); padding: 1px 0; }
+    .d365-gov-history-version { font-weight: 700; color: var(--text-h); }
+    .d365-gov-history-date { color: var(--text-dim); white-space: nowrap; }
+
+    .d365-offer-spinner {
+      text-align: center;
+      padding: 20px 12px;
+      color: var(--text-sub);
+      font-size: 12px;
+    }
+
+    .d365-offer-spinner::before {
+      content: '';
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--border);
+      border-top-color: var(--brand);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      margin-bottom: 8px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ═══════════════════════════════════
+       INTERACTION HISTORY SECTION STYLES
+    ═══════════════════════════════════ */
+    .interaction-history-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--surface);
+      border: 1px solid var(--border-light);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .interaction-history-table thead {
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .interaction-history-table th {
+      padding: 10px 12px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-h);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .interaction-history-table tbody tr {
+      border-bottom: 1px solid var(--border-light);
+      transition: background .15s;
+    }
+
+    .interaction-history-table tbody tr:hover {
+      background: var(--bg);
+    }
+
+    .interaction-history-table td {
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--text);
+    }
+
+    .interaction-history-label {
+      color: var(--text-h);
+      font-weight: 500;
+    }
+
+    .interaction-history-channel {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      background: var(--pega-light);
+      color: var(--pega-blue);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .interaction-history-channel.web {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .interaction-history-channel.email {
+      background: #e3f2fd;
+      color: #1565c0;
+    }
+
+    .interaction-history-channel.phone {
+      background: #fce4ec;
+      color: #c2185b;
+    }
+
+    .interaction-history-outcome {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .interaction-history-outcome.impression {
+      background: #fff3e0;
+      color: #e65100;
+    }
+
+    .interaction-history-outcome.engaged {
+      background: #e8f5e9;
+      color: #1b5e20;
+    }
+
+    .interaction-history-outcome.accepted {
+      background: #c8e6c9;
+      color: #1b5e20;
+    }
+
+    .interaction-history-outcome.rejected {
+      background: #ffcdd2;
+      color: #b71c1c;
+    }
+
+    .interaction-history-time {
+      color: var(--text-dim);
+      font-size: 12px;
+    }
+
+    .interaction-history-empty {
+      text-align: center;
+      padding: 12px;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .interaction-history-loading {
+      text-align: center;
+      padding: 12px;
+      color: var(--text-sub);
+      font-size: 13px;
+    }
+
+    .interaction-history-error {
+      background: #ffebee;
+      border: 1px solid #ef5350;
+      border-radius: 4px;
+      padding: 12px;
+      color: #c62828;
+      font-size: 12px;
+      margin-top: 12px;
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.8);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 4px;
+      font-size: 13px;
+      z-index: 1000;
+      animation: slideUp .3s ease-out;
+      transition: opacity .3s;
+    }
+
+    @keyframes slideUp {
+      from {
+        transform: translateX(-50%) translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 860px) {
+      body { overflow: auto; }
+      .body-row { overflow: visible; }
+      .contacts-rail { display: none; }
+      .d365-layout { overflow: visible; }
+      .d365-content-grid { grid-template-columns: 1fr; overflow: visible; }
+      .d365-form-area { overflow: visible; }
+      .d365-side-area { overflow: visible; border-left: none; border-top: 1px solid var(--border); }
+    }
+  </style>
+<script src="js/data.js"></script>
+<script src="js/cdh.js"></script>
+<script src="js/session.js"></script>
+<script src="js/explainability.js"></script>
+<script src="js/governance.js"></script>
+<script src="js/core-banking.js"></script>
+</head>
+<body>
+
+<!-- TOP APP BAR -->
+<div class="topbar">
+  <div class="topbar-menu">☰</div>
+  <div class="topbar-logo">Instellars<span class="topbar-logo-app">Agent Desktop</span></div>
+  <div class="topbar-spacer"></div>
+  <button class="topbar-btn-train">Train Next-Best-Action</button>
+  <div class="topbar-avatar">EF</div>
+</div>
+
+<!-- BODY: Rail + Main Content -->
+<div class="body-row">
+  
+  <!-- ACTIVE CONTACTS SIDEBAR -->
+  <div class="contacts-rail">
+    <div class="contacts-rail-label">ACTIVE CONTACTS</div>
+    <div id="contactsListContainer"></div>
+  </div>
+
+  <!-- D365 LAYOUT -->
+  <div class="d365-layout">
+
+    <!-- HEADER with customer info and highlights -->
+    <div style="padding: 10px 24px; background: var(--surface); border-bottom: 1px solid var(--border);">
+      
+      <div class="d365-record-row">
+        <div class="d365-record-icon" id="d365RecordIcon">DP</div>
+        <div>
+          <div class="d365-record-name" data-field="corporationName">Dark Pencil Corporation</div>
+          <span class="d365-record-type" data-field="contactPerson">Emily Foster, Account Manager</span>
+        </div>
+      </div>
+
+      <div class="d365-highlights">
+        <div class="d365-hl">
+          <div class="d365-hl-label">Credit Score</div>
+          <div class="d365-hl-val good" data-field="contactPhone">750</div>
+        </div>
+        <div class="d365-hl">
+          <div class="d365-hl-label">DTI Ratio</div>
+          <div class="d365-hl-val" data-field="industry">29%</div>
+        </div>
+        <div class="d365-hl">
+          <div class="d365-hl-label">Balance</div>
+          <div class="d365-hl-val" data-field="combinedBalance">$186.42</div>
+        </div>
+        <div class="d365-hl">
+          <div class="d365-hl-label">Risk Flag</div>
+          <div class="d365-hl-val good" data-field="churnRisk">Low</div>
+        </div>
+        <div class="d365-hl">
+          <div class="d365-hl-label">Loan Accounts</div>
+          <div class="d365-hl-val" data-field="loanAccountsCount">0</div>
+        </div>
+      </div>
+
+      <!-- Business Process Flow -->
+      <div class="d365-bpf" id="bpfContainer">
+        <div class="d365-bpf-stage done"><div class="d365-bpf-dot"></div>Onboard</div>
+        <div class="d365-bpf-stage done"><div class="d365-bpf-dot"></div>Qualify</div>
+        <div class="d365-bpf-stage done"><div class="d365-bpf-dot"></div>Engage</div>
+        <div class="d365-bpf-stage active"><div class="d365-bpf-dot"></div>Grow</div>
+        <div class="d365-bpf-stage"><div class="d365-bpf-dot"></div>Advocate</div>
+      </div>
+    </div>
+
+    <!-- FORM TABS -->
+    <div class="d365-form-tabs">
+      <div class="d365-form-tab active" onclick="switchFormTab('summary')">Summary</div>
+      <div class="d365-form-tab" onclick="switchFormTab('interactionHistory')">Interaction History</div>
+    </div>
+
+    <!-- TWO-COLUMN CONTENT -->
+    <div class="d365-content-grid">
+
+      <!-- MAIN FORM AREA -->
+      <div class="d365-form-area">
+
+        <div id="summaryTabContent">
+
+          <!-- Accounts Overview section -->
+          <div class="d365-section">
+            <div class="d365-section-hdr">
+              <span class="d365-section-hdr-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v2"/></svg>
+                Accounts Overview
+              </span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+            </div>
+            <div class="d365-section-body">
+              <table class="d365-accounts-table">
+                <thead>
+                  <tr><th>ACCOUNT NAME</th><th>TYPE</th><th>NUMBER</th><th>BALANCE / RATE</th><th>STATUS</th></tr>
+                </thead>
+                <tbody id="accountsTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Financial Snapshot section -->
+          <div class="d365-section">
+            <div class="d365-section-hdr">
+              <span class="d365-section-hdr-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                Financial Snapshot
+              </span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="18 15 12 9 6 15"/></svg>
+            </div>
+            <div class="d365-section-body">
+              <div class="d365-field-grid">
+                <div class="d365-field">
+                  <div class="d365-field-label">Credit Score</div>
+                  <div class="d365-field-val good" data-field="creditScoreScale">750 / 850</div>
+                  <div class="d365-field-provenance" data-provenance="creditScore"></div>
+                </div>
+                <div class="d365-field">
+                  <div class="d365-field-label">Debt-to-Income</div>
+                  <div class="d365-field-val" data-field="industry">29%</div>
+                  <div class="d365-field-provenance" data-provenance="debtToIncomeRatio"></div>
+                </div>
+                <div class="d365-field">
+                  <div class="d365-field-label">Customer Segment</div>
+                  <div class="d365-field-val" data-field="customerValue">Mass Retail</div>
+                  <div class="d365-field-provenance" data-provenance="segment"></div>
+                </div>
+                <div class="d365-field">
+                  <div class="d365-field-label">Digital Engagement</div>
+                  <div class="d365-field-val" data-field="relationshipStatus">Low</div>
+                  <div class="d365-field-provenance" data-provenance="digitalEngagement"></div>
+                </div>
+                <div class="d365-field">
+                  <div class="d365-field-label">Active Loan Accounts</div>
+                  <div class="d365-field-val" data-field="loanAccountsCount">0</div>
+                  <div class="d365-field-provenance" data-provenance="numLoanAccounts"></div>
+                </div>
+                <div class="d365-field">
+                  <div class="d365-field-label">Risk Flag</div>
+                  <div class="d365-field-val" data-field="churnRisk">Low</div>
+                  <div class="d365-field-provenance" data-provenance="riskFlag"></div>
+                </div>
+              </div>
+              <div class="d365-provenance-footnote" id="corePrfFootnote"></div>
+            </div>
+          </div>
+
+        </div><!-- /summaryTabContent -->
+
+        <div id="interactionHistoryTabContent" style="display:none;">
+
+          <!-- Interaction History section -->
+          <div class="d365-section">
+            <div class="d365-section-hdr" style="cursor:default;">
+              <span class="d365-section-hdr-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Interaction History
+              </span>
+            </div>
+            <div class="d365-section-body">
+              <div id="interactionHistoryContainer">
+                <div class="interaction-history-loading">Loading interaction history...</div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /interactionHistoryTabContent -->
+
+      </div><!-- /form area -->
+
+      <!-- SIDE PANEL: CDH + Timeline -->
+      <div class="d365-side-area">
+
+        <!-- CDH / NBA -->
+        <div class="d365-side-panel">
+          <div class="d365-nba-header">
+            <div class="d365-nba-live">
+              <div class="d365-nba-live-left"><div class="d365-nba-live-dot"></div><span class="d365-nba-live-label">Next Best Action Engine</span></div>
+              <span class="d365-pega-pill">Pega CDH</span>
+            </div>
+            <div class="d365-nba-title">AI Recommendations</div>
+          </div>
+
+          <!-- Offers Container -->
+          <div id="offersContainer" style="margin-top: 12px;">
+            <div class="d365-offer-spinner">Loading recommendations...</div>
+          </div>
+        </div>
+
+        <!-- Compliance Flags -->
+        <div class="d365-side-panel">
+          <div class="d365-compliance-hdr">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6z"/></svg>
+            Compliance Flags
+          </div>
+          <div class="d365-compliance-body">
+            <div class="d365-compliance-row">
+              <span>KYC Status</span>
+              <span class="d365-compliance-val good" data-field="kycStatus">Verified</span>
+            </div>
+            <div class="d365-compliance-row">
+              <span>AML Screening</span>
+              <span class="d365-compliance-val good" data-field="amlStatus">Clear</span>
+            </div>
+            <div class="d365-compliance-row">
+              <span>Financially Vulnerable</span>
+              <span class="d365-compliance-val good" data-field="relationshipManager">No</span>
+            </div>
+            <div class="d365-compliance-row">
+              <span>Days Past Due</span>
+              <span class="d365-compliance-val" data-field="daysPastDueLabel">0 days</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /side panel -->
+
+    </div><!-- /content grid -->
+
+  </div><!-- /d365-layout -->
+
+</div><!-- /body-row -->
+
+<script>
+  // ═══════════════════════════════════════════════════════════════
+  // CDH CONFIGURATION
+  // ═══════════════════════════════════════════════════════════════
+  
+  // ═══════════════════════════════════════════════════════════════
+  // CUSTOMER IDENTITY — resolved from ?customer=<id> in the URL, same
+  // pattern as mobile-app.html, so this reflects whichever Instellars
+  // customer the agent is actually looking up, not a hardcoded profile.
+  // ═══════════════════════════════════════════════════════════════
+  const urlParams = new URLSearchParams(window.location.search);
+  const requestedCustomerId = urlParams.get("customer");
+  const agentCustomer = CUSTOMERS.find(c => c.id === requestedCustomerId) || CUSTOMERS[0];
+
+  // Cached copy of whatever renderOffersHtml() last rendered, so toggling
+  // the "Why this recommendation" panel can re-render from memory instead
+  // of re-firing a live CDH call (and hitting the CORS wall) every time an
+  // agent just wants to expand/collapse the explanation.
+  let agentLastDecisions = [];
+  let agentExplainExpandedId = null;
+  function toggleAgentExplain(interactionId) {
+    agentExplainExpandedId = agentExplainExpandedId === interactionId ? null : interactionId;
+    const offersContainer = document.getElementById('offersContainer');
+    if (offersContainer && agentLastDecisions.length) {
+      offersContainer.innerHTML = renderOffersHtmlCached();
+    }
+  }
+
+  const cdhConfig = {
+    "enabled": true,
+    "containerUrl": "",
+    "endpoint": "",
+    "timeout": 8000,
+    "retryAttempts": 2,
+    "subjectId": agentCustomer.id,
+    "contextName": CDH_CONTEXT_NAME,
+    "containerName": "NextBestAction",
+    "direction": CDH_DIRECTION,
+    "placements": "Tile,Tile,Tile",
+    // For now, sending Web here even though this is the Call Center agent
+    // experience — matches the user's explicit instruction, may change
+    // once CallCenter is supported as a valid channel value on the Pega
+    // side.
+    "channel": "Web"
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // INTERACTION HISTORY FUNCTIONALITY
+  // ═══════════════════════════════════════════════════════════════
+  
+  async function loadInteractionHistory() {
+    const container = document.getElementById('interactionHistoryContainer');
+
+    // Our own infrastructure doesn't have a CustomerOfferHistory endpoint —
+    // the closest real equivalent is the customer's own Activity Ledger,
+    // which lives in the same shared session used by the dashboard and
+    // mobile app. That's only populated for whichever customer is actually
+    // logged into this browser right now, so if the agent has pulled up a
+    // different customer than that, there's honestly nothing to show.
+    const session = loadSession();
+    const isActiveCustomer = session.customerId === agentCustomer.id;
+    const entries = isActiveCustomer ? session.log : [];
+
+    if (entries.length > 0) {
+      const rows = entries.map(item => {
+        const outcome = item.type === "accepted" ? "Accepted"
+          : item.type === "dismissed" ? "Dismissed"
+          : item.type === "impression" ? "Impression"
+          : "System";
+        const outcomeClass = `interaction-history-outcome ${outcome.toLowerCase()}`;
+        // Reflects the actual source that generated this entry — Call
+        // Center only for entries genuinely written by an accept/reject on
+        // the Agent Desktop's own Next Best Action tile. An accept/dismiss
+        // made on the website or mobile app is still Web/Mobile even
+        // though it shows up in this same shared ledger.
+        const channelLabel = item.channel || "Web";
+        const channelClass = channelLabel === "Call Center" ? "phone" : channelLabel === "Mobile" ? "email" : "web";
+        return `
+          <tr>
+            <td class="interaction-history-label">${item.text}</td>
+            <td><span class="interaction-history-channel ${channelClass}">${channelLabel}</span></td>
+            <td><span class="${outcomeClass}">${outcome}</span></td>
+            <td class="interaction-history-time">${item.time}</td>
+          </tr>`;
+      }).join("");
+
+      container.innerHTML = `
+        <table class="interaction-history-table">
+          <thead>
+            <tr><th>Label</th><th>Channel</th><th>Outcome</th><th>Outcome Time</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+    } else {
+      container.innerHTML = `<div class="interaction-history-empty">No interaction history available for this customer.</div>`;
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // CDH OFFERS FUNCTIONALITY
+  // ═══════════════════════════════════════════════════════════════
+
+  function renderOffersHtml(decisions) {
+    agentLastDecisions = decisions;
+    const session = loadSession();
+    const responses = (session.customerId === agentCustomer.id ? session.responses : {}) || {};
+    // Full eligible-candidate pool for this customer, used only to give the
+    // Arbitration panel a meaningful denominator — Agent Desktop always
+    // shows just the single top-ranked recommendation (unlike the
+    // website/mobile offer rails), so "rank among what's on screen" would
+    // trivially always read "#1 of 1". Ranking against every action this
+    // customer is eligible for gives the agent something actually useful:
+    // where does this recommendation sit among everything it beat.
+    let eligiblePool = [];
+    try {
+      eligiblePool = OFFER_CATALOG.filter(o => o.eligibility(agentCustomer));
+    } catch (err) {
+      eligiblePool = [];
+    }
+    return decisions.map((decision, index) => {
+      const offerLabel = decision.title;
+      const offerBenefits = decision.description || '';
+      const interactionId = decision.interactionID || `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+      // Persist back onto the decision object so a re-render triggered by
+      // toggling the explain panel (which reuses this same cached
+      // `decisions` array, not a fresh fetch) generates the same id again
+      // instead of a new random one each time — otherwise the just-clicked
+      // toggle's expanded state could never match on the next render.
+      decision.interactionID = interactionId;
+      const syntheticId = offerLabel.replace(/[^a-zA-Z0-9]/g, '');
+      const existingResponse = responses[syntheticId];
+      const actionsHtml = existingResponse
+        ? `<div class="d365-offer-response-badge ${existingResponse === "accepted" ? "accepted" : "rejected"}">
+             <span>${existingResponse === "accepted" ? "✓" : "✕"}</span> ${existingResponse === "accepted" ? "Accepted" : "Dismissed"}
+           </div>`
+        : `<div class="d365-offer-actions">
+            <button class="d365-offer-btn reject" onclick="captureResponse('${interactionId}', 'Dismiss', '${index + 1}', '${offerLabel}', '${decision.category || 'General'}', '${decision.group || 'General'}', '${decision.rank || index + 1}')">
+              <span>✕</span> Reject
+            </button>
+            <button class="d365-offer-btn maybe" onclick="captureResponse('${interactionId}', 'Maybe', '${index + 1}', '${offerLabel}', '${decision.category || 'General'}', '${decision.group || 'General'}', '${decision.rank || index + 1}')">
+              <span>?</span> Maybe
+            </button>
+            <button class="d365-offer-btn accept" onclick="captureResponse('${interactionId}', 'Accepted', '${index + 1}', '${offerLabel}', '${decision.category || 'General'}', '${decision.group || 'General'}', '${decision.rank || index + 1}')">
+              <span>✓</span> Accept
+            </button>
+          </div>`;
+
+      let explainHtml = "";
+      if (typeof explainOffer === "function") {
+        try {
+          const explanation = explainOffer(decision, agentCustomer, responses, session, eligiblePool);
+          const expanded = agentExplainExpandedId === interactionId;
+          explainHtml = `
+            <button class="d365-explain-toggle" onclick="toggleAgentExplain('${interactionId}')">
+              <span>Why this recommendation</span><span>${expanded ? "▲" : "▼"}</span>
+            </button>
+            ${expanded ? renderAgentExplainPanel(explanation) : ""}`;
+        } catch (err) {
+          explainHtml = "";
+        }
+      }
+
+      return `
+        <div class="d365-offer" data-interaction-id="${interactionId}" data-offer-name="${offerLabel}">
+          <div class="d365-offer-icon">${index + 1}</div>
+          <div class="d365-offer-title">${offerLabel}</div>
+          <div class="d365-offer-desc">${offerBenefits}</div>
+          ${actionsHtml}
+          ${explainHtml}
+        </div>`;
+    }).join('');
+  }
+
+  function renderAgentExplainCheckRow(check) {
+    const cls = check.pass === true ? "d365-check-pass" : check.pass === false ? "d365-check-fail" : "d365-check-unknown";
+    const glyph = check.pass === true ? "✓" : check.pass === false ? "✕" : "—";
+    return `<div class="d365-explain-check-row ${cls}"><span class="d365-explain-check-glyph">${glyph}</span><span>${check.label}</span></div>`;
+  }
+
+  function renderAgentExplainPanel(explanation) {
+    const { reason, eligibility, applicability, suitability, arbitration, contactPolicy } = explanation;
+    const section = (title, checks) => checks.length
+      ? `<div class="d365-explain-section-title">${title}</div>${checks.map(renderAgentExplainCheckRow).join("")}`
+      : "";
+    const gov = typeof getGovernanceRecord === "function" ? getGovernanceRecord(explanation.offer) : null;
+    const govHtml = gov ? renderAgentGovernancePanel(gov) : "";
+    // Only the CP-REJ-G-7D contact-policy rule is parsed today
+    // (parseContactPolicyDescription, js/explainability.js) — section is
+    // omitted entirely when this offer's ContactPolicyDescription didn't
+    // contain that row, same convention as Eligibility/Applicability/
+    // Suitability above. Only these 4 fields are shown, by request —
+    // parseContactPolicyDescription still extracts the rest, just not
+    // displayed here.
+    const contactPolicyHtml = contactPolicy ? `
+        <div class="d365-explain-section-title">Contact Policy</div>
+        <div class="d365-explain-row"><span>Rule</span><span>${contactPolicy.label}</span></div>
+        <div class="d365-explain-row"><span>Definition</span><span>${contactPolicy.definitionLabel}</span></div>
+        <div class="d365-explain-row"><span>Suppression Duration</span><span>${contactPolicy.suppressionDuration} ${contactPolicy.suppressionPeriod}</span></div>
+        <div class="d365-explain-row"><span>Level</span><span>${contactPolicy.contactPolicyLevel}</span></div>` : "";
+    return `
+      <div class="d365-explain-panel">
+        <div class="d365-explain-reason">${reason}</div>
+        ${section("Eligibility", eligibility)}
+        ${section("Applicability", applicability)}
+        ${section("Suitability", suitability)}
+        ${contactPolicyHtml}
+        <div class="d365-explain-section-title">Arbitration</div>
+        <div class="d365-explain-row"><span>Priority Score</span><span>${arbitration.mine.priorityScore.toFixed(3)}</span></div>
+        <div class="d365-explain-row"><span>Propensity</span><span>${arbitration.mine.propensity.toFixed(2)}</span></div>
+        <div class="d365-explain-row"><span>Context Weight</span><span>${arbitration.mine.contextWeight.toFixed(2)}</span></div>
+        <div class="d365-explain-row"><span>Value</span><span>${arbitration.mine.value.toFixed(2)}</span></div>
+        <div class="d365-explain-row"><span>Lever</span><span>${arbitration.mine.lever.toFixed(2)}</span></div>
+        <div class="d365-explain-row"><span>Formula</span><span>${arbitration.mine.propensity.toFixed(2)} × ${arbitration.mine.contextWeight.toFixed(2)} × ${arbitration.mine.value.toFixed(2)} × ${arbitration.mine.lever.toFixed(2)}</span></div>
+        <div class="d365-explain-row"><span>Rank vs. all eligible actions</span><span>#${arbitration.rank} of ${arbitration.total}</span></div>
+        ${govHtml}
+      </div>`;
+  }
+
+  function renderAgentGovernancePanel(record) {
+    if (record.status === "Unregistered") {
+      return `<div class="d365-explain-section-title">Governance</div><div class="d365-gov-unregistered">⚠ No governance record for this offer's proposition group.</div>`;
+    }
+    const statusClass = record.status === "Live" ? "d365-gov-status-live" : "d365-gov-status-review";
+    const historyHtml = record.changeHistory.slice(0, 3).map(h =>
+      `<div class="d365-gov-history-row"><span class="d365-gov-history-version">${h.version}</span><span>${h.change}</span><span class="d365-gov-history-date">${h.date}</span></div>`
+    ).join("");
+    return `
+      <div class="d365-explain-section-title">Governance</div>
+      <div class="d365-explain-row"><span>Strategy version</span><span>${record.strategyVersion} <span class="${statusClass}">${record.status}</span></span></div>
+      <div class="d365-explain-row"><span>Approved by</span><span>${record.approvedBy}</span></div>
+      <div class="d365-explain-row"><span>Approved date</span><span>${record.approvedDate}</span></div>
+      <div class="d365-explain-row"><span>Model version</span><span>${record.modelVersion}</span></div>
+      <div class="d365-gov-history">${historyHtml}</div>`;
+  }
+
+  function renderOffersHtmlCached() {
+    return renderOffersHtml(agentLastDecisions);
+  }
+
+  async function refreshOffers() {
+    const offersContainer = document.getElementById('offersContainer');
+
+    if (!cdhConfig.enabled) {
+      offersContainer.innerHTML = '<div class="d365-offer-spinner">CDH is disabled in configuration</div>';
+      return;
+    }
+
+    // Diego (Priority Banking Upgrade) gets his own dedicated path, entirely
+    // separate from the generic reuse/stage-scoped/live-fetch chain below —
+    // requested directly: Next Best Action here should show exactly what's
+    // already in his Personalized Offers panel on the dashboard, and this
+    // must NEVER fire its own container call for him. His Container API is
+    // deliberately called only once per session, at login
+    // (ensureDiegoContainerOffers, js/cdh.js, see DEVELOPER_HANDOVER.md §52)
+    // — the generic canReuse block further down would actually have failed
+    // silently for him anyway even before this fix: it resolves
+    // lastFetchedOfferIds against the local OFFER_CATALOG mock, but every
+    // one of his offers comes from the live container response with
+    // Pega-assigned ids that were never in that catalog to begin with, so
+    // the lookup always came back empty and fell through to a fresh
+    // simulateCDHRequest() call regardless. Recomputes the same
+    // Pending-Missions/Pending-Milestones dedup Personalized Offers itself
+    // applies (dashboard.html's renderDashboardBody, §71) — not just the
+    // raw cached list — from the same session state, so this never shows
+    // something Diego's own dashboard wouldn't.
+    if (agentCustomer.id === "C1004") {
+      const sharedSession = loadSession();
+      if (sharedSession.customerId !== agentCustomer.id || !Array.isArray(sharedSession.diegoContainerOffers) || !Array.isArray(sharedSession.lastFetchedOfferIds)) {
+        offersContainer.innerHTML = `<div class="d365-offer-spinner">No recommendations available — Diego hasn't been active on the website/mobile app yet this session.</div>`;
+        return;
+      }
+      const availableMissions = getDiegoAvailableMissions(sharedSession, agentCustomer);
+      const availableMilestones = getDiegoAvailableMilestones(sharedSession, agentCustomer);
+      const personalizedOffers = sharedSession.lastFetchedOfferIds
+        .map(id => sharedSession.diegoContainerOffers.find(o => o.id === id))
+        .filter(Boolean)
+        .filter(o => {
+          const key = normalizeActionTitle(o.title);
+          const inPendingMissions = availableMissions.some(m => normalizeActionTitle(m.title) === key);
+          const inPendingMilestones = availableMilestones.some(m => normalizeActionTitle(m.title) === key);
+          return !inPendingMissions && !inPendingMilestones;
+        });
+      const top = personalizedOffers.slice(0, 1);
+      offersContainer.innerHTML = top.length > 0
+        ? renderOffersHtml(top)
+        : `<div class="d365-offer-spinner">No recommendations available for this customer right now.</div>`;
+      return;
+    }
+
+    // Robert/Aria/Maya each get the exact same treatment as Diego's
+    // dedicated path above, for the exact same reason: their real offers
+    // all come from their own one-call-per-session container cache
+    // (session.robertContainerOffers/ariaContainerOffers/mayaContainerOffers
+    // — ensureRobertContainerOffers/ensureAriaContainerOffers/
+    // ensureMayaContainerOffers, js/cdh.js), carrying real Pega-assigned ids
+    // that were never in the local OFFER_CATALOG mock to begin with. The
+    // generic canReuse block further down resolves lastFetchedOfferIds
+    // against OFFER_CATALOG — that lookup silently returns nothing for
+    // these three (same root cause Diego's own path was built to dodge),
+    // and because canReuse itself was still true, execution used to fall
+    // through BOTH the reuse branch and the "not reusing" messaging branch
+    // (only the outer canReuse being false sets that message) straight into
+    // a stage-scoped block that fired its own live container call — a real,
+    // confirmed bug (reported directly: opening Agent Desktop for Maya
+    // right after her website login still triggered a Container API call).
+    // Resolving against their own container cache instead, mirroring
+    // dashboard.html's own stage-scoped filtering exactly, fixes this the
+    // same way Diego's dedicated block already does — and this now fully
+    // replaces the old separate "stage-scoped live fetch" block that used
+    // to sit below (dead code for all three of its only possible journeys
+    // once this block always intercepts them first).
+    const STAGE_SCOPED_CONTAINER_CUSTOMERS = {
+      [PRIYA_CUSTOMER_ID]: { journeyId: "loan-card-crosssell", offersField: "robertContainerOffers" },
+      "CUST101": { journeyId: "wealth-management", offersField: "ariaContainerOffers" },
+      [MAYA_CUSTOMER_ID]: { journeyId: "digital-activation-onboarding", offersField: "mayaContainerOffers" },
+      [DIGITAL_DEEPENING_CUSTOMER_ID]: { journeyId: "transaction-digital-deepening", offersField: "mariaContainerOffers" },
+      [OFW_FAMILY_CUSTOMER_ID]: { journeyId: "ofw-family", offersField: "angelicaContainerOffers" },
+    };
+    const stageScopedConfig = STAGE_SCOPED_CONTAINER_CUSTOMERS[agentCustomer.id];
+    if (stageScopedConfig) {
+      const sharedSession = loadSession();
+      const firstName = agentCustomer.name.split(" ")[0];
+      if (sharedSession.customerId !== agentCustomer.id
+        || sharedSession.currentJourneyId !== stageScopedConfig.journeyId
+        || !Array.isArray(sharedSession[stageScopedConfig.offersField])) {
+        offersContainer.innerHTML = `<div class="d365-offer-spinner">No recommendations available — ${firstName} hasn't been active on the website/mobile app yet this session.</div>`;
+        return;
+      }
+      const journey = getJourneyById(stageScopedConfig.journeyId);
+      const stage = journey?.stages[sharedSession.currentStageIndex || 0];
+      const matched = stage
+        ? filterOffersForStage(sharedSession[stageScopedConfig.offersField], stage)
+            .filter(o => sharedSession.journeyActionResponses[normalizeActionTitle(o.title)] === undefined)
+            .slice(0, 1)
+        : [];
+      offersContainer.innerHTML = matched.length > 0
+        ? renderOffersHtml(matched)
+        : `<div class="d365-offer-spinner">No recommendations available for this customer right now.</div>`;
+      return;
+    }
+
+    // Reuse whatever the website/mobile app already fetched for this exact
+    // customer, instead of firing a second, separate container call —
+    // requested directly: an agent looking up a customer who's genuinely
+    // active in this same browser session should see the identical
+    // decision already computed for them, not a fresh (and possibly
+    // different, given the mock path's own randomized latency/scoring
+    // inputs) independent one. Only applies when session.customerId
+    // actually matches — same "don't fabricate data for someone who isn't
+    // really active here" honesty rule already used for Interaction
+    // History above. Falls through to the normal live-then-mock fetch
+    // below whenever there's nothing to reuse (different customer, or nothing
+    // fetched yet). Only ever reached now for Sam or anyone else on the
+    // fully generic (non-stage-scoped) path — Diego/Robert/Aria/Maya are
+    // always intercepted by their own dedicated blocks above.
+    const sharedSession = loadSession();
+    const canReuse = sharedSession.customerId === agentCustomer.id
+      && Array.isArray(sharedSession.lastFetchedOfferIds)
+      && sharedSession.lastFetchedOfferIds.length > 0;
+    if (canReuse) {
+      const reused = sharedSession.lastFetchedOfferIds
+        .map(id => OFFER_CATALOG.find(o => o.id === id))
+        .filter(Boolean)
+        .slice(0, 1);
+      if (reused.length > 0) {
+        offersContainer.innerHTML = renderOffersHtml(reused);
+        return;
+      }
+    }
+
+    offersContainer.innerHTML = '<div class="d365-offer-spinner"><div class="spinner" style="margin:0 auto 8px;"></div>Loading recommendations from CDH…</div>';
+
+    try {
+      // Uses the same simulateCDHRequest() our dashboard and mobile app
+      // use — attempts the real Instellars CDH endpoint first; on failure
+      // (e.g. no network access) falls back to local mock scoring below,
+      // same as the rest of the site, rather than just showing an error
+      // like the original implementation did. The Business Context
+      // selector is kept for visual consistency but isn't wired to
+      // anything on our side, since our CDH doesn't support arbitrary
+      // Intent-based context switching.
+      const result = await simulateCDHRequest(agentCustomer, {
+        channel: cdhConfig.channel,
+        subjectId: cdhConfig.subjectId,
+        containerName: cdhConfig.containerName,
+        direction: cdhConfig.direction,
+      });
+      const decisions = (result.offers || []).slice(0, 1);
+      offersContainer.innerHTML = decisions.length > 0
+        ? renderOffersHtml(decisions)
+        : `<div class="d365-offer-spinner">No recommendations available for this customer right now.</div>`;
+    } catch (error) {
+      console.error('CDH API Error, falling back to mock:', error);
+      try {
+        const mockResult = await simulateCDHRequestMock(agentCustomer);
+        const mockDecisions = (mockResult.offers || []).slice(0, 1);
+        offersContainer.innerHTML = mockDecisions.length > 0
+          ? renderOffersHtml(mockDecisions)
+          : `<div class="d365-offer-spinner">No recommendations available for this customer right now.</div>`;
+      } catch (mockError) {
+        offersContainer.innerHTML = `
+          <div class="d365-offer-spinner">
+            <div style="color: #d32f2f; margin-bottom: 8px;">Unable to load recommendations</div>
+            <div style="font-size: 11px; color: var(--text-dim);">${mockError.message}</div>
+          </div>
+        `;
+      }
+    }
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // CAPTURE RESPONSE HANDLING
+  // ═══════════════════════════════════════════════════════════════
+  
+  async function captureResponse(interactionID, outcome, rank, offerName, issue, group, rankNum) {
+    // Disable buttons while processing
+    const offerCard = document.querySelector(`[data-interaction-id="${interactionID}"]`);
+    const buttons = offerCard.querySelectorAll('.d365-offer-btn');
+    buttons.forEach(btn => btn.disabled = true);
+
+    // Show feedback
+    showToast(`Capturing response: ${outcome}...`);
+
+    // Uses the same sendCaptureResponse() our dashboard and mobile app use
+    // — it never throws (failures are logged internally and swallowed),
+    // so this always reaches the success path below, same as the rest of
+    // our capture_response calls site-wide.
+    const behavior = outcome === "Accepted" ? "Positive" : outcome === "Maybe" ? "Neutral" : "Negative";
+    const syntheticOffer = {
+      id: offerName.replace(/[^a-zA-Z0-9]/g, ''),
+      title: offerName,
+      category: issue,
+      group: group,
+      rank: rankNum,
+      interactionID: interactionID,
+    };
+    await sendCaptureResponse(agentCustomer, syntheticOffer, {
+      channel: cdhConfig.channel,
+      direction: cdhConfig.direction,
+      subjectId: cdhConfig.subjectId,
+      outcome: outcome,
+      behavior: behavior,
+    });
+
+    // Mirrors respondToOffer() in session.js — the capture_response call
+    // above only reports the decision back to Pega, it doesn't touch our
+    // own shared session at all. Without this, an accept made here never
+    // showed up in Interaction History and never advanced Priya's journey
+    // stage the way the same accept does on the website.
+    const session = loadSession();
+    if (session.customerId === agentCustomer.id) {
+      const status = outcome === "Accepted" ? "accepted" : "dismissed";
+      session.responses[syntheticOffer.id] = status;
+      maybeAdvanceJourneyStage(session, syntheticOffer, status);
+      const journeyId = session.currentJourneyId === "loan-card-crosssell" ? session.currentJourneyId : null;
+      pushSessionLog(
+        session,
+        status,
+        status === "accepted"
+          ? `${offerName} accepted — response sent to Interaction History`
+          : `${offerName} dismissed — response sent to Interaction History`,
+        journeyId,
+        syntheticOffer.id,
+        "Call Center"
+      );
+      saveSession(session);
+      loadInteractionHistory();
+    }
+
+    showToast(`✓ Response captured: ${outcome}`);
+    setTimeout(() => refreshOffers(), 800);
+  }
+  
+  function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+  
+  // ═══════════════════════════════════════════════════════════════
+  // CUSTOMER DATA
+  // ═══════════════════════════════════════════════════════════════
+  
+  const HOLDING_LABELS = {
+    checking: "Checking", savings: "Savings", "creditcard-standard": "Credit Card",
+    "business-loan": "Business Loan",
+  };
+  const accountTypeLabel = agentCustomer.holdings.map(h => HOLDING_LABELS[h] || h).join(" + ") || "Checking";
+  const tenureDisplay = agentCustomer.tenureYears >= 1
+    ? `${agentCustomer.tenureYears} year${agentCustomer.tenureYears === 1 ? "" : "s"}`
+    : `${Math.round(agentCustomer.tenureYears * 12)} months`;
+
+  const customerData = {
+    "corporationName": agentCustomer.name,
+    "contactPerson": `${agentCustomer.segment} Customer`,
+    "contactInitials": agentCustomer.initials,
+    "customerValue": agentCustomer.segment,
+    "churnRisk": agentCustomer.riskFlag ? "Elevated" : "Low",
+    "relationshipStatus": agentCustomer.digitalEngagement.charAt(0).toUpperCase() + agentCustomer.digitalEngagement.slice(1),
+    "verificationStatus": "Verified",
+    "contactPhone": String(agentCustomer.creditScore),
+    "contactEmail": agentCustomer.email || "Not on file",
+    "industry": `${Math.round(agentCustomer.debtToIncomeRatio * 100)}%`,
+    "relationshipManager": agentCustomer.riskFlag ? "Yes" : "No",
+    "accountNumber": `INST-${agentCustomer.id}`,
+    "accountStatus": "Active",
+    "accountType": accountTypeLabel,
+    "combinedBalance": `$${agentCustomer.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    "creditFacility": agentCustomer.activeLoanBalance ? `$${agentCustomer.activeLoanBalance.toLocaleString()}` : "—",
+    "customerTenure": tenureDisplay,
+    "creditScoreScale": `${agentCustomer.creditScore} / 850`,
+    "loanAccountsCount": String(agentCustomer.numLoanAccounts ?? 0),
+    "kycStatus": "Verified",
+    "amlStatus": "Clear",
+    "daysPastDueLabel": `${agentCustomer.daysPastDue ?? 0} days`,
+  };
+
+  // ═══════════════════════════════════════════════════════════════
+  // ACCOUNTS OVERVIEW TABLE
+  // ═══════════════════════════════════════════════════════════════
+
+  function renderAccountsTable() {
+    const body = document.getElementById("accountsTableBody");
+    if (!body) return;
+    const accounts = getAccountsForCustomer(agentCustomer);
+    body.innerHTML = accounts.map(acc => {
+      const balanceOrRate = acc.balance != null
+        ? `$${acc.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : acc.rate || "—";
+      return `
+        <tr>
+          <td class="name">${acc.label}</td>
+          <td>${acc.type}</td>
+          <td>${acc.masked}</td>
+          <td>${balanceOrRate}</td>
+          <td class="status active">Active</td>
+        </tr>`;
+    }).join("");
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ACTIVE CONTACTS SIDEBAR
+  // ═══════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════
+  // FORM TABS
+  // ═══════════════════════════════════════════════════════════════
+
+  window.switchFormTab = function (tab) {
+    document.getElementById("summaryTabContent").style.display = tab === "summary" ? "" : "none";
+    document.getElementById("interactionHistoryTabContent").style.display = tab === "interactionHistory" ? "" : "none";
+    document.querySelectorAll(".d365-form-tab").forEach(el => el.classList.remove("active"));
+    const clickedTab = [...document.querySelectorAll(".d365-form-tab")].find(el =>
+      el.textContent.trim() === (tab === "summary" ? "Summary" : "Interaction History")
+    );
+    if (clickedTab) clickedTab.classList.add("active");
+  };
+
+  function renderContactsList() {
+    const container = document.getElementById("contactsListContainer");
+    if (!container) return;
+    container.innerHTML = CUSTOMERS.map(c => `
+      <a class="contact-item ${c.id === agentCustomer.id ? "active" : ""}" href="agent-desktop.html?customer=${encodeURIComponent(c.id)}">
+        <div class="contact-item-avatar">${c.initials}</div>
+        <div>
+          <div class="contact-item-name">${c.name}</div>
+          <div class="contact-item-segment">${c.segment}</div>
+        </div>
+      </a>`).join("");
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // INITIALIZATION
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.addEventListener('DOMContentLoaded', () => {
+    applyCustomerData();
+    renderContactsList();
+    renderAccountsTable();
+    
+    // Load interaction history
+    loadInteractionHistory();
+    
+    // Auto-load recommendations with default/empty context
+    setTimeout(() => {
+      refreshOffers();
+    }, 500);
+  });
+
+  // Live cross-app sync: fires in this tab whenever a DIFFERENT same-origin
+  // tab (the website or mobile app) writes to the shared session key —
+  // e.g. a customer's stage advancing because they accepted an offer on
+  // the website. Re-fetches the Next Best Action recommendation (or, more
+  // often now, just re-reuses the freshly-updated shared data — see
+  // refreshOffers() above) and re-renders the Business Process Flow bar so
+  // both reflect the new stage without needing a manual refresh or page
+  // reload, the same way the mobile app already stays in sync with the
+  // website. Widened from Robert-only to all three stage-scoped journeys —
+  // previously this only fired for isLoanCardJourneyCustomer(), which
+  // silently meant Aria's and Maya's stage changes never triggered a
+  // live update here even though the initial page load already handled
+  // them correctly.
+  window.addEventListener("storage", (event) => {
+    if (event.key !== SESSION_KEY || !event.newValue) return;
+    let shared;
+    try {
+      shared = JSON.parse(event.newValue);
+    } catch (err) {
+      return;
+    }
+    if (shared.customerId !== agentCustomer.id) return;
+    refreshOffers();
+    renderBpf();
+  });
+  
+  // Reflects the customer's REAL journey stage — previously this bar was
+  // static HTML, always showing the same "Grow" stage active for every
+  // customer regardless of who they actually were or where they really
+  // were in their journey. Only meaningful for customers who are both (a)
+  // on one of the three stage-scoped journeys and (b) actually the one
+  // currently active in this shared session (same session used for offer
+  // reuse above and Interaction History) — an agent looking up someone
+  // who isn't live anywhere falls back to the original generic
+  // placeholder labels, since there's no real stage to reflect for them.
+  function renderBpf() {
+    const container = document.getElementById('bpfContainer');
+    if (!container) return;
+    const session = loadSession();
+    const isActiveInSession = session.customerId === agentCustomer.id;
+    const journey = isActiveInSession ? getJourneyById(session.currentJourneyId) : null;
+    if (journey) {
+      const stageIndex = session.currentStageIndex || 0;
+      container.innerHTML = journey.stages.map((s, i) => {
+        const cls = i < stageIndex ? "done" : i === stageIndex ? "active" : "";
+        return `<div class="d365-bpf-stage ${cls}"><div class="d365-bpf-dot"></div>${s.stage}</div>`;
+      }).join("");
+    } else {
+      container.innerHTML = `
+        <div class="d365-bpf-stage done"><div class="d365-bpf-dot"></div>Onboard</div>
+        <div class="d365-bpf-stage done"><div class="d365-bpf-dot"></div>Qualify</div>
+        <div class="d365-bpf-stage done"><div class="d365-bpf-dot"></div>Engage</div>
+        <div class="d365-bpf-stage active"><div class="d365-bpf-dot"></div>Grow</div>
+        <div class="d365-bpf-stage"><div class="d365-bpf-dot"></div>Advocate</div>`;
+    }
+  }
+
+  function applyCustomerData() {
+    renderBpf();
+    // Update all elements with data-field attributes
+    document.querySelectorAll('[data-field]').forEach(element => {
+      const fieldName = element.getAttribute('data-field');
+      if (customerData[fieldName] !== undefined) {
+        element.textContent = customerData[fieldName];
+      }
+    });
+    
+    // Update avatar with initials
+    const avatarElement = document.getElementById('d365RecordIcon');
+    if (avatarElement && customerData.contactInitials) {
+      avatarElement.textContent = customerData.contactInitials;
+    }
+    
+    // Update topbar avatar
+    const topbarAvatar = document.querySelector('.topbar-avatar');
+    if (topbarAvatar && customerData.contactInitials) {
+      topbarAvatar.textContent = customerData.contactInitials;
+    }
+
+    // Risk-flag fields (top card + Financial Snapshot) are hardcoded green
+    // in the HTML as a starting point — flip to red for customers who
+    // actually carry riskFlag: true, so it reflects real data rather than
+    // always showing "Low" regardless of the customer.
+    document.querySelectorAll('[data-field="churnRisk"]').forEach(el => {
+      el.classList.toggle("good", !agentCustomer.riskFlag);
+      el.classList.toggle("risk", !!agentCustomer.riskFlag);
+    });
+    document.querySelectorAll('[data-field="relationshipManager"]').forEach(el => {
+      el.classList.toggle("good", !agentCustomer.riskFlag);
+      el.classList.toggle("risk", !!agentCustomer.riskFlag);
+    });
+    const daysPastDueEl = document.querySelector('[data-field="daysPastDueLabel"]');
+    if (daysPastDueEl) {
+      const overdue = (agentCustomer.daysPastDue ?? 0) > 0;
+      daysPastDueEl.classList.toggle("good", !overdue);
+      daysPastDueEl.classList.toggle("risk", overdue);
+    }
+
+    applyCoreBankingProvenance();
+  }
+
+  // Populates the small "where did this come from, how fresh is it"
+  // captions under each Financial Snapshot field. Deliberately synchronous
+  // against the already-computed provenance (no loading spinner needed —
+  // this is metadata about the customer record already in memory, not a
+  // fresh network call), unlike fetchCoreBankingProfile() which simulates
+  // an actual round trip and is used by the dashboard's Data Sources panel
+  // instead.
+  function applyCoreBankingProvenance() {
+    if (typeof cbBuildProvenance !== "function") return;
+    const provenance = cbBuildProvenance(agentCustomer.id);
+    document.querySelectorAll('[data-provenance]').forEach(el => {
+      const key = el.getAttribute('data-provenance');
+      const p = provenance[key];
+      if (!p) return;
+      el.classList.toggle('stale', p.stale);
+      el.innerHTML = `<span class="d365-prf-dot"></span>${p.source} · ${p.mechanism.split('—')[0].trim()} · ${p.relative}${p.stale ? ' · stale' : ''}`;
+    });
+    const footnote = document.getElementById('corePrfFootnote');
+    if (footnote) {
+      footnote.textContent = 'Field-level data provenance simulated for demo purposes — see js/core-banking.js.';
+    }
+  }
+</script>
+
+</body>
+</html>

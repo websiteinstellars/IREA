@@ -1,0 +1,29 @@
+action_id,name,issue,group,channels,status,suitability,audience_pct,description
+BA001,NTB Welcome Series,Service,Onboarding,Email;SMS;Push,Active,,,Welcome and digital setup for new to bank customers
+BA002,OLB Enrollment Push,Service,Digital,Push;Email,Active,,,Enrol in online and mobile banking
+BA003,Card Activation Reminder,Service,Cards,Email;SMS;Push,Active,,,Reminder to activate a new credit card
+BA004,Alerts Enrollment,Service,Digital,Email;SMS,Active,,,Set up balance and payment alerts
+BA005,eStatements Offer,Service,Digital,Email;Web,Active,,,Go paperless with eStatements
+BA006,Direct Deposit Bonus,Sales,Deposits,Email;Web,Active,,,Move your salary credit to us
+BA007,Savings Account Offer,Sales,Deposits,Email;Web,Active,,,Open a high yield savings account
+BA008,CD Maturity Notice,Retention,Deposits,Email,Active,,,Fixed deposit maturity: renew or reinvest
+BA009,Time Deposit Special 13-Month,Sales,Deposits,Email;Web,Active,,,Lock in a fixed term rate
+BA010,Cash Rewards Card Offer,Sales,Cards,Email;Web,Active,Credit score above 650,,Credit card with cashback
+BA011,Balance Transfer Offer,Sales,Cards,Email;Web,Active,,,Transfer your card balance at a lower rate
+BA012,Card Spend Bonus,Sales,Cards,Email;Push,Active,,,Reasons to use your dormant card again
+BA013,Personal Loan Pre-Approved,Sales,Lending,Email;SMS,Active,Credit score above 650,,Pre-approved personal loan
+BA014,Auto Refi Campaign Q3,Sales,Lending,Email,Active,,,Refinance your auto loan at a lower rate
+BA015,Home Insurance Quote,Sales,Insurance,Web;Email,Active,,,Homeowners insurance quote
+BA016,Mortgage Protection Offer,Sales,Insurance,Email,Active,,,Life cover to protect your mortgage
+BA017,Advisor Appointment,Sales,Wealth,Email;Call Center,Active,,,Meet a financial advisor
+BA018,Birthday Message,Service,Loyalty,Email;SMS,Active,,,Birthday greeting
+BA019,New Device Alert,Service,Security,Push;SMS,Active,,,New device sign-in: was this you
+BA020,Security Tips,Service,Security,Email,Active,,,Scam awareness and security tips
+BA021,Rate Match Retention,Retention,Deposits,Email;Call Center,Active,,,Better rate offer when money is moving out
+BA022,Mortgage Rate Lock Promo,Sales,Mortgage,Email;Direct Mail,Active,,,Mortgage rate lock
+BA023,Holiday Spending Campaign,Marketing,Seasonal,Email;Push,Active,,,Seasonal spend campaign
+BA024,529 College Savings Promo,Sales,Wealth,Email,Active,,,Education savings plan
+BA025,Branch Appointment Reminder,Service,Branch,SMS,Active,,,Reminder for a branch visit
+BA026,Collections Call Queue,Service,Collections,Call Center,Active,,,Outbound collections queue
+BA027,Brand Awareness Banner,Marketing,Brand,Web,Active,,,Brand banner
+BA028,Mobile App Download,Service,Digital,SMS;Email,Retired,,,Download the mobile app

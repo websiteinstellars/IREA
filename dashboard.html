@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<!-- Segment Analytics — disabled on this screen (only active on the New Application wizard\'s Abandoned Application / Confirmation stage). <script>   !function(){var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/" + key + "/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="rXdBVA5oE27vBDqifUzSmXs2K3pHoD8R";;analytics.SNIPPET_VERSION="5.2.0";   analytics.load("rXdBVA5oE27vBDqifUzSmXs2K3pHoD8R");   analytics.page();   }}(); </script> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instellars — Dashboard</title>
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+<div id="app" class="bnk-root"></div>
+
+<script src="js/data.js"></script>
+<script src="js/cdh.js"></script>
+<script src="js/session.js"></script>
+<script src="js/behavioral.js"></script>
+<script src="js/explainability.js"></script>
+<script src="js/render-shared.js"></script>
+<script>
+  // ---- Page guard: must be logged in ----
+  const customer = requireLoggedInCustomer();
+
+  if (customer) {
+    let session = loadSession();
+
+    // Sets pega_aud_customer_id on Tealium's data layer the moment Robert
+    // logs in and lands on his dashboard — explicit, scoped request, and
+    // separate from new-application.html's own Tealium integration (that
+    // one fires on the loan application's confirmation page, not at login).
+    // Same load-utag.js-if-needed + onload-deferred pattern as that file's
+    // enableTealiumAnalytics(), for the same reason: window.utag doesn't
+    // exist yet the instant the script tag is inserted.
+    function enableLoginTealiumAnalytics() {
+      window.utag_data = window.utag_data || {};
+      window.utag_data.pega_aud_customer_id = customer.id;
+
+      function fireTealiumView() {
+        window.utag.view(window.utag_data);
+      }
+
+      if (window.utag) {
+        fireTealiumView();
+      } else {
+        (function(a,b,c,d){
+          a = "https://tags.tiqcdn.com/utag/instellars-sandbox/abhishek.banerjee/prod/utag.js";
+          b = document; c = "script"; d = b.createElement(c);
+          d.src = a; d.type = "text/java" + c; d.async = true;
+          d.onload = fireTealiumView;
+          d.onerror = function () {
+            console.error("Tealium utag.js failed to load — view() not sent.");
+          };
+          var r = b.getElementsByTagName(c)[0];
+          r.parentNode.insertBefore(d, r);
+        })();
+      }
+    }
+    if (customer.id === PRIYA_CUSTOMER_ID) {
+      enableLoginTealiumAnalytics();
+    }
+
+    // Ephemeral, page-local view of the offer rail — re-fetched on every real
+    // page load rather than persisted, since that's the realistic behavior
+    // for a live decisioning call. expandedId (which receipt is open) is also
+    // just page-local UI state, not something that needs to survive navigation.
+    const dashState = { loading: true, offers: [], meta: null, expandedId: null, balanceHidden: false, supabaseEvents: { status: "loading", entries: [], loading: true }, brevoTrigger: { status: "idle" }, availableMissions: [], availableMilestones: [], progressMonitor: [] };
+
+    // Shared lookup for any button that responds to an offer by id — Diego's
+    // "Available Missions"/"Available Milestones" sections (getDiegoAvailableMissions/
+    // getDiegoAvailableMilestones, js/cdh.js) render offers that live outside
+    // dashState.offers, so a plain dashState.offers.find() would miss them.
+    function findAnyDashOffer(offerId) {
+      return dashState.offers.find(o => o.id === offerId)
+        || dashState.availableMissions.find(o => o.id === offerId)
+        || dashState.availableMilestones.find(o => o.id === offerId);
+    }
+
+    // Customers whose flows actually fire the Segment identify()/page()
+    // calls that produce rows in Supabase's events table — the loan wizard
+    // customers, Aria's separate SIP wizard (sip-application.html), and
+    // Diego's separate investment account wizard
+    // (investment-application.html). Kept apart from
+    // NEW_APPLICATION_CUSTOMER_IDS since that list also gates the unrelated
+    // New Application (loan) card, which neither Aria nor Diego is offered.
+    const EVENT_STORE_CUSTOMER_IDS = [...NEW_APPLICATION_CUSTOMER_IDS, "CUST101", "C1004"];
+
+    function journeyHref(journey) {
+      return `journey.html?journey=${encodeURIComponent(journey.id)}&stage=0`;
+    }
+
+    // The badge's job is to answer "did the last real container call
+    // actually succeed," not "did the user ask to simulate an outage" —
+    // those are two different questions that used to be conflated (see
+    // DEVELOPER_HANDOVER.md §3.4 / §14): this previously read session.outage
+    // directly, so it kept saying "Live" even when a real CORS failure (which
+    // happens on every load in this sandbox) silently served fallback data.
+    // The actual signal already exists on every fallback code path —
+    // dashState.meta.fallback — this just wires the badge to it instead.
+    function renderLiveBadge(state) {
+      if (state.loading) {
+        return `<span class="bnk-live-badge checking">${icon("refreshCw", 13)}Checking…</span>`;
+      }
+      // Robert's Braze toggle — distinct label so it never reads as either
+      // "Live" (this isn't a Pega decision) or "Fallback mode" (nothing
+      // failed; this is a deliberate, working alternate data source).
+      if (state.meta?.source === "braze") {
+        return `<span class="bnk-live-badge live">${icon("wifi", 13)}Braze Banner</span>`;
+      }
+      const isFallback = !!state.meta?.fallback;
+      return `<span class="bnk-live-badge ${isFallback ? "down" : "live"}">${isFallback ? icon("wifiOff", 13) : icon("wifi", 13)}${isFallback ? "Fallback mode" : "Live"}</span>`;
+    }
+
+    function renderDashboardBody() {
+      const accounts = getAccountsForCustomer(customer);
+      const heroAccount = accounts[0];
+      const secondaryAccounts = accounts.slice(1);
+      const firstName = customer.name.split(" ")[0];
+      const hour = new Date().getHours();
+      const timeOfDay = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+
+      // Computed up front (not just inside the "has offers" branch below)
+      // so both empty-state checks — dashState.offers itself empty, and
+      // offersToShow empty after Diego's own dedup filter — can use it.
+      const isDiegoJourney = session.currentJourneyId === "priority-banking-upgrade";
+      // Same illustrated-empty-state treatment as Pending Missions/Pending
+      // Milestones/Progress Monitor (bnk-panel-empty, dashboard.html) rather
+      // than the plain italic bnk-journey-empty text every other customer's
+      // Personalized Offers panel still uses — scoped to Diego only.
+      const diegoOffersEmptyHtml = `<div class="bnk-panel-empty"><div class="bnk-panel-empty-icon">${icon("info", 20)}</div><div class="bnk-panel-empty-text">You're all caught up here — new offers will appear as you complete missions and milestones.</div></div>`;
+      let offersHtml;
+      if (dashState.loading) {
+        offersHtml = [0, 1, 2].map(() => `
+          <div class="bnk-skeleton">
+            <div class="bnk-skeleton-line" style="width:40%;height:12px;margin-bottom:14px;"></div>
+            <div class="bnk-skeleton-line" style="width:80%;height:18px;margin-bottom:10px;"></div>
+            <div class="bnk-skeleton-line" style="width:100%;height:10px;margin-bottom:6px;"></div>
+            <div class="bnk-skeleton-line" style="width:90%;height:10px;margin-bottom:6px;"></div>
+            <div class="bnk-skeleton-line" style="width:60%;height:10px;"></div>
+          </div>`).join("");
+      } else if (dashState.offers.length === 0) {
+        offersHtml = isDiegoJourney ? diegoOffersEmptyHtml : `<div class="bnk-journey-empty" style="margin-bottom:0;">No personalized offers available right now.</div>`;
+      } else {
+        // Priya's and Diego's stage-scoped offers show all of them (a
+        // journey stage can legitimately have more than 3 actions — Diego's
+        // Earn stage alone can show up to 4, and a mission registered late
+        // via Available Missions gets its Engage action(s) merged straight
+        // into dashState.offers regardless of count, see handleRespond) —
+        // the top-3 cap only applies to the generic, non-journey dashboard
+        // rail everyone else sees.
+        const isPriyaJourney = session.currentJourneyId === "loan-card-crosssell";
+        const offersToShow = isPriyaJourney
+          ? hideAcceptedPreApprovedOffer(dashState.offers, session.responses)
+          : isDiegoJourney
+          // Register/Engage stage's own current-stage fetch can legitimately
+          // contain the exact same titles Pending Missions/Pending
+          // Milestones already show (e.g. while actually ON Register stage,
+          // the not-yet-registered mission is both "this stage's own
+          // action" AND "available to register") — excluded here so it
+          // doesn't render as a visible duplicate across two panels.
+          ? dashState.offers.filter(o => {
+              const key = normalizeActionTitle(o.title);
+              const inPendingMissions = dashState.availableMissions.some(m => normalizeActionTitle(m.title) === key);
+              const inPendingMilestones = dashState.availableMilestones.some(m => normalizeActionTitle(m.title) === key);
+              return !inPendingMissions && !inPendingMilestones;
+            })
+          : dashState.offers.slice(0, 3);
+        if (offersToShow.length === 0) {
+          offersHtml = isDiegoJourney ? diegoOffersEmptyHtml : `<div class="bnk-journey-empty" style="margin-bottom:0;">No personalized offers available right now.</div>`;
+        } else {
+          offersHtml = offersToShow
+            .map(o => renderOfferCard(o, { expandedId: dashState.expandedId, responses: session.responses, showJourneyStage: true, compact: false, customer, session, allOffers: offersToShow }))
+            .join("");
+        }
+      }
+
+      const sectionSub = dashState.meta?.source === "braze"
+        ? `Braze Canvas + Banner (simulated) · ${dashState.meta.latencyMs}ms`
+        : dashState.meta?.fallback
+        ? "Showing static fallback offers"
+        : dashState.meta
+        ? `Strategy ${dashState.meta.strategy} · ${dashState.meta.latencyMs}ms`
+        : "Loading personalization…";
+
+      const navTabs = ["Dashboard", "Accounts", "Transfers", "Bills", "Cards", "Loans", "Investments"];
+      // The plain tabs live in their own overflow-x:auto scroller, separate
+      // from the dropdown below — putting the dropdown inside a scrolling
+      // container clips its panel, since a container with overflow-x set to
+      // anything but visible forces overflow-y to compute to auto too (a
+      // well-known CSS gotcha), silently clipping content that overflows
+      // vertically even though nothing scrolls there on purpose.
+      const navTabsHtml = navTabs.map((t, i) => `<button class="bnk-nav-tab ${i === 0 ? "active" : ""}">${t}</button>`).join("");
+
+      // Maya-only switch (MAYA_DASHBOARD_ACTION_CARDS_ENABLED, js/data.js):
+      // hides both the New Application and Calculators cards below for her.
+      const hideActionCards = customer.id === MAYA_CUSTOMER_ID && !MAYA_DASHBOARD_ACTION_CARDS_ENABLED;
+
+      const newApplicationCardHtml = !hideActionCards && NEW_APPLICATION_CUSTOMER_IDS.includes(customer.id) && !isLoanCardJourneyCustomer(customer.id) ? `
+        <div class="bnk-application-card">
+          <div class="bnk-application-card-icon">${icon("creditCard", 20)}</div>
+          <div style="flex:1;">
+            <div class="bnk-application-card-title">New Application</div>
+            <div class="bnk-application-card-sub">Start a new account application — takes about 2 minutes.</div>
+          </div>
+          <button class="bnk-btn-primary" style="flex:none;padding:0.55rem 1.1rem;" onclick="handleStartNewApplication()">Start application ${icon("chevronRight", 14)}</button>
+        </div>` : "";
+
+      // Open to every customer, unlike the New Application card above (which
+      // only shows for the loan-wizard cohort) — a real bank offers its
+      // calculator tools to everyone, not just prospects mid-application.
+      // Except Maya while her flag above is off.
+      // Robert-only switch (ROBERT_DASHBOARD_CALCULATORS_CARD_ENABLED,
+      // js/data.js) hides just this card for him.
+      const hideCalculatorsCard = hideActionCards || (customer.id === PRIYA_CUSTOMER_ID && !ROBERT_DASHBOARD_CALCULATORS_CARD_ENABLED);
+      const calculatorsCardHtml = hideCalculatorsCard ? "" : `
+        <div class="bnk-application-card">
+          <div class="bnk-application-card-icon">${icon("trendingUp", 20)}</div>
+          <div style="flex:1;">
+            <div class="bnk-application-card-title">Calculators</div>
+            <div class="bnk-application-card-sub">Balance transfer, rewards, travel miles, EMI, personal loan, and home loan — plan it out before you apply.</div>
+          </div>
+          <a class="bnk-btn-ghost" style="flex:none;padding:0.55rem 1.1rem;text-decoration:none;" href="calculators.html">Open calculators ${icon("chevronRight", 14)}</a>
+        </div>`;
+
+      const pe = dashState.supabaseEvents;
+      const renderEventRow = e => `
+        <div class="bnk-txn-row">
+          <div class="bnk-txn-icon info">${icon("info", 15)}</div>
+          <div>
+            <div class="bnk-txn-name">${e.title || "(untitled)"}</div>
+            <div class="bnk-txn-meta">${getCustomerNameById(e.userId) || e.userId || "unknown user"}</div>
+          </div>
+          <div class="bnk-mono bnk-txn-amount-neutral">${e.timestamp || ""}</div>
+        </div>`;
+      const sampleNoteHtml = `<div class="bnk-sidebar-note" style="margin-top:0.6rem;">Sample data shown — couldn't reach the event store.</div>`;
+
+      let supabaseEventsBodyHtml;
+      if (pe.loading) {
+        supabaseEventsBodyHtml = `<div class="bnk-log-empty">Loading events…</div>`;
+      } else if (pe.status === "error") {
+        const sampleForCustomer = SAMPLE_EVENT_STORE_ENTRIES.filter(e => e.userId === customer.id);
+        supabaseEventsBodyHtml = sampleForCustomer.length > 0
+          ? sampleForCustomer.slice(0, 5).map(renderEventRow).join("") + sampleNoteHtml
+          : `<div class="bnk-log-empty">No events found.</div>` + sampleNoteHtml;
+      } else if (pe.entries.length === 0) {
+        supabaseEventsBodyHtml = `<div class="bnk-log-empty">No events found.</div>`;
+      } else {
+        supabaseEventsBodyHtml = pe.entries.slice(0, 5).map(renderEventRow).join("");
+      }
+
+      // Event Store panel — any customer with a Segment-tracked application
+      // flow that could actually produce rows in Supabase: the loan wizard
+      // customers (NEW_APPLICATION_CUSTOMER_IDS) plus Aria, who has her own
+      // separate SIP application flow (sip-application.html) firing the same
+      // kind of Segment identify()/page() calls. Deliberately not just
+      // widening NEW_APPLICATION_CUSTOMER_IDS itself — that list also gates
+      // the unrelated New Application (loan) card below, which doesn't apply
+      // to Aria.
+      const eventStorePanelHtml = EVENT_STORE_CUSTOMER_IDS.includes(customer.id) ? `
+        <div class="bnk-sidebar-panel">
+          <div class="bnk-sidebar-panel-header"><div class="bnk-sidebar-panel-title">Event Store</div></div>
+          ${supabaseEventsBodyHtml}
+        </div>` : "";
+
+      const bt = dashState.brevoTrigger;
+      const brevoButtonHtml =
+        bt.status === "sending" ? `<button class="bnk-btn-primary" style="flex:none;padding:0.55rem 1.1rem;" disabled>Sending…</button>`
+        : `<button class="bnk-btn-primary" style="flex:none;padding:0.55rem 1.1rem;" onclick="handleTriggerBrevoEvent()">${icon("send", 14)} Send to Brevo</button>`;
+      const brevoStatusHtml =
+        bt.status === "ok" ? `<div class="bnk-application-card-sub" style="color:var(--success);margin-top:0.5rem;">${icon("check", 13)} Event sent successfully.</div>`
+        : bt.status === "error" ? `<div class="bnk-application-card-sub" style="color:var(--danger);margin-top:0.5rem;">Failed: ${bt.error}</div>`
+        : "";
+
+      const brevoCardHtml = customer.id === BREVO_CUSTOMER_ID ? `
+        <div class="bnk-application-card" style="flex-direction:column;align-items:stretch;">
+          <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+            <div class="bnk-application-card-icon">${icon("shieldCheck", 20)}</div>
+            <div style="flex:1;">
+              <div class="bnk-application-card-title">Brevo Automation</div>
+              <div class="bnk-application-card-sub">Trigger the "pega_nba_decision" custom event for ${customer.name}.</div>
+            </div>
+            ${brevoButtonHtml}
+          </div>
+          ${brevoStatusHtml}
+        </div>` : "";
+
+      // Diego's dashboard swaps the standard "hero card + Personalized
+      // Offers in a narrow 340px side column" layout for: the ORIGINAL
+      // (full-width, not narrowed) hero card at the top, shortened only in
+      // height via bnk-hero-account--compact's padding/spacing rules — then
+      // one full-width row below it holding Pending Missions, Pending
+      // Milestones, Progress Monitor, and Personalized Offers last, always
+      // all four, side by side. Every other customer keeps the original
+      // layout untouched. Each panel's markup is built
+      // once here so the exact same markup can be dropped into whichever
+      // layout applies, rather than duplicated.
+      const isDiego = customer.id === "C1004";
+      const heroCardHtml = `
+        <div class="bnk-hero-account${isDiego ? " bnk-hero-account--compact" : ""}">
+          <div class="bnk-hero-contactless">${icon("contactless", 14)}</div>
+          <div class="bnk-hero-chip"></div>
+          <div class="bnk-hero-top-row">
+            <span class="bnk-hero-type">${heroAccount.type}</span>
+            ${heroAccount.active ? `<span class="bnk-hero-active-pill">Active</span>` : ""}
+          </div>
+          <div class="bnk-hero-label">${heroAccount.label}</div>
+          <div class="bnk-hero-masked">${heroAccount.masked}</div>
+          <div class="bnk-hero-balance-label">Available balance</div>
+          <div class="bnk-hero-balance-row">
+            <div class="bnk-mono bnk-hero-balance-value">${dashState.balanceHidden ? "••••••••" : `$${heroAccount.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</div>
+            <button class="bnk-hero-balance-toggle" onclick="handleToggleBalanceVisibility()" aria-label="${dashState.balanceHidden ? "Show balance" : "Hide balance"}">${icon(dashState.balanceHidden ? "eye" : "eyeOff", 11)}</button>
+          </div>
+          <div class="bnk-hero-actions">
+            <button class="bnk-hero-action-btn"><span class="bnk-hero-action-icon">${icon("send", 12)}</span><span class="bnk-hero-action-label">Transfer</span></button>
+            <button class="bnk-hero-action-btn"><span class="bnk-hero-action-icon">${icon("creditCard", 12)}</span><span class="bnk-hero-action-label">Pay Bills</span></button>
+            <button class="bnk-hero-action-btn"><span class="bnk-hero-action-icon">${icon("qrCode", 12)}</span><span class="bnk-hero-action-label">QR Pay</span></button>
+            <button class="bnk-hero-action-btn"><span class="bnk-hero-action-icon">${icon("trendingUp", 12)}</span><span class="bnk-hero-action-label">Statement</span></button>
+          </div>
+          ${secondaryAccounts.length ? `
+          <div class="bnk-hero-subaccounts">
+            ${secondaryAccounts.map(a => `
+              <div class="bnk-hero-subaccount-row">
+                <div>
+                  <div class="bnk-hero-subaccount-label">${a.label}</div>
+                  <div class="bnk-hero-subaccount-masked">${a.masked}</div>
+                </div>
+                <div class="bnk-mono bnk-hero-subaccount-value">
+                  ${a.balance !== null
+                    ? (dashState.balanceHidden ? "••••••" : `$${a.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)
+                    : `<span class="bnk-hero-subaccount-maturity">${a.rate} · matures ${a.maturity}</span>`}
+                </div>
+              </div>`).join("")}
+          </div>` : ""}
+        </div>`;
+      const personalizedOffersPanelHtml = `
+        <div class="bnk-sidebar-panel">
+          <div class="bnk-sidebar-panel-header">
+            <div class="bnk-sidebar-panel-title">${icon("info", 15)} Personalized Offers</div>
+            <span class="bnk-engine-badge">${dashState.meta?.source === "braze" ? "Braze" : "Instellars Engine"}</span>
+          </div>
+          <div class="bnk-section-controls" style="margin-bottom:1rem;">
+            ${renderLiveBadge(dashState)}
+            <button class="bnk-icon-btn ${session.outage ? "active" : ""}" onclick="handleToggleOutage()">${session.outage ? "Restore CDH" : "Simulate outage"}</button>
+            <button class="bnk-icon-btn" onclick="handleRefresh()" ${dashState.loading ? "disabled" : ""}>${icon("refreshCw", 13)} Refresh</button>
+          </div>
+          <div class="bnk-sidebar-offers-stack">${offersHtml}</div>
+          <div class="bnk-sidebar-note">${sectionSub} · ${dashState.meta?.source === "braze" ? "Offers powered by Braze Canvas + Banners (simulated)" : "Offers powered by Instellars Real-Time Engagement Engine"}</div>
+        </div>`;
+      const pendingMissionsPanelHtml = `
+        <div class="bnk-sidebar-panel bnk-status-panel">
+          <div class="bnk-sidebar-panel-header">
+            <div class="bnk-sidebar-panel-title">${icon("info", 15)} Pending Missions</div>
+          </div>
+          <div class="bnk-sidebar-offers-stack">
+            ${dashState.availableMissions.length === 0
+              ? `<div class="bnk-panel-empty"><div class="bnk-panel-empty-icon">${icon("briefcase", 20)}</div><div class="bnk-panel-empty-text">No missions pending right now — you've registered for both.</div></div>`
+              : dashState.availableMissions.map(o => renderOfferCard(o, { expandedId: dashState.expandedId, responses: session.responses, showJourneyStage: false, compact: false, customer, session, allOffers: dashState.availableMissions })).join("")}
+          </div>
+          <div class="bnk-sidebar-note">Register-stage missions you haven't registered for yet.</div>
+        </div>`;
+      const pendingMilestonesPanelHtml = `
+        <div class="bnk-sidebar-panel bnk-status-panel">
+          <div class="bnk-sidebar-panel-header">
+            <div class="bnk-sidebar-panel-title">${icon("info", 15)} Pending Milestones</div>
+          </div>
+          <div class="bnk-sidebar-offers-stack">
+            ${dashState.availableMilestones.length === 0
+              ? `<div class="bnk-panel-empty"><div class="bnk-panel-empty-icon">${icon("landmark", 20)}</div><div class="bnk-panel-empty-text">No milestones pending right now.</div></div>`
+              : dashState.availableMilestones.map(o => renderOfferCard(o, { expandedId: dashState.expandedId, responses: session.responses, showJourneyStage: false, compact: false, customer, session, allOffers: dashState.availableMilestones })).join("")}
+          </div>
+          <div class="bnk-sidebar-note">Engage actions unlocked by your registered missions, not yet actioned.</div>
+        </div>`;
+      const progressMonitorPanelHtml = `
+        <div class="bnk-sidebar-panel bnk-status-panel">
+          <div class="bnk-sidebar-panel-header">
+            <div class="bnk-sidebar-panel-title">${icon("trendingUp", 15)} Progress Monitor</div>
+          </div>
+          <div class="bnk-sidebar-offers-stack">
+            ${dashState.progressMonitor.length === 0
+              ? `<div class="bnk-panel-empty"><div class="bnk-panel-empty-icon">${icon("trendingUp", 20)}</div><div class="bnk-panel-empty-text">No missions registered yet — progress will show here once you register for one.</div></div>`
+              : dashState.progressMonitor.map(o => renderOfferCard(o, { expandedId: dashState.expandedId, responses: session.responses, showJourneyStage: false, compact: false, customer, session, allOffers: dashState.progressMonitor, readOnly: true })).join("")}
+          </div>
+          <div class="bnk-sidebar-note">A standing view of every mission you've registered for — stays here at 100% Complete even after it wraps up.</div>
+        </div>`;
+
+      return `
+        <div>
+          <div class="bnk-header">
+            <div class="bnk-brand" style="margin-bottom:0;">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+            <div class="bnk-header-right">
+              <span class="bnk-segment-pill">${customer.segment}</span>
+              <span style="font-size:0.85rem;">${customer.name}</span>
+              <button class="bnk-signout-btn" onclick="handleSignOut()">${icon("logOut", 14)}<span> Sign out</span></button>
+            </div>
+          </div>
+          <div class="bnk-nav-tabs">
+            <div class="bnk-nav-tabs-scroll">${navTabsHtml}</div>
+            <div class="bnk-nav-dropdown" id="exploreViewsMenu">
+              <button class="bnk-nav-tab bnk-nav-dropdown-trigger" onclick="toggleExploreViewsMenu(event)">Explore other views ${icon("chevronDown", 12)}</button>
+              <div class="bnk-nav-dropdown-panel">
+                <a class="bnk-nav-dropdown-item" href="mobile-app.html?customer=${encodeURIComponent(customer.id)}" target="_blank" rel="noopener"><span class="bnk-nav-dropdown-item-icon">${icon("smartphone", 15)}</span>Mobile App</a>
+                <a class="bnk-nav-dropdown-item" href="agent-desktop.html?customer=${encodeURIComponent(customer.id)}" target="_blank" rel="noopener"><span class="bnk-nav-dropdown-item-icon">${icon("landmark", 15)}</span>Agent Desktop</a>
+                <a class="bnk-nav-dropdown-item" href="program-performance.html" target="_blank" rel="noopener"><span class="bnk-nav-dropdown-item-icon">${icon("trendingUp", 15)}</span>Program Performance</a>
+                <a class="bnk-nav-dropdown-item" href="data-sources.html" target="_blank" rel="noopener"><span class="bnk-nav-dropdown-item-icon">${icon("refreshCw", 15)}</span>Data Sources</a>
+                <a class="bnk-nav-dropdown-item" href="gap-scan.html" target="_blank" rel="noopener"><span class="bnk-nav-dropdown-item-icon">${icon("search", 15)}</span>Gap Scan</a>
+              </div>
+            </div>
+          </div>
+
+          <div class="bnk-body">
+            <div class="bnk-greeting">Good ${timeOfDay}, <span class="bnk-name-accent">${firstName}</span> 👋</div>
+
+            ${isDiego ? `
+            ${heroCardHtml}
+
+            <div class="bnk-diego-panel-row">
+              <div class="bnk-diego-status-panels">
+                ${pendingMissionsPanelHtml}
+                ${pendingMilestonesPanelHtml}
+                ${progressMonitorPanelHtml}
+              </div>
+              ${personalizedOffersPanelHtml}
+            </div>
+
+            <div class="bnk-main-col">
+              ${newApplicationCardHtml}
+              ${calculatorsCardHtml}
+              ${eventStorePanelHtml}
+              ${brevoCardHtml}
+              ${renderActivityLedgerAsTransactions(session.log, dashState.offers, session.currentJourneyId)}
+            </div>
+            ` : `
+            <div class="bnk-dashboard-grid">
+              <div class="bnk-main-col">
+                ${heroCardHtml}
+                ${newApplicationCardHtml}
+                ${calculatorsCardHtml}
+                ${eventStorePanelHtml}
+                ${brevoCardHtml}
+                ${renderActivityLedgerAsTransactions(session.log, dashState.offers, session.currentJourneyId)}
+              </div>
+
+              <div class="bnk-side-col">
+                ${personalizedOffersPanelHtml}
+              </div>
+            </div>
+            `}
+
+            <div style="${["CUST101", PRIYA_CUSTOMER_ID].includes(customer.id) ? "display:none;" : ""}">
+              ${renderJourneyMap(customer, dashState.offers, journeyHref)}
+            </div>
+
+            <div class="bnk-footer-note">Instellars Real-Time Engagement Engine demo, built on Pega Customer Decision Hub, for demonstration purposes only.</div>
+          </div>
+        </div>`;
+    }
+
+    function paint() {
+      document.getElementById("app").innerHTML = renderDashboardBody();
+    }
+
+    async function loadSupabaseEvents() {
+      dashState.supabaseEvents.loading = true;
+      paint();
+      const result = await fetchSupabaseEvents(customer.id);
+      dashState.supabaseEvents = { ...result, loading: false };
+      paint();
+    }
+
+
+    async function loadOffers() {
+      dashState.loading = true;
+      dashState.expandedId = null;
+      paint();
+
+      // Robert's, Aria's, Maya's, and Diego's Personalized Offers sections
+      // show only the action for whichever stage of their own journey
+      // they're currently on — fetched via a dedicated stage-scoped request
+      // (same approach as journey.html: the mock fallback filters the
+      // catalog by stage category BEFORE scoring, not the general top-N
+      // filtered after the fact, since the current stage's action might not
+      // even appear in a generic top-N pull to begin with). Extended from
+      // Robert-only to also cover Aria's Wealth Management & Advisory
+      // journey, then Maya's Digital Activation & Onboarding journey, then
+      // Diego's Priority Banking Upgrade journey — the block below is
+      // already journey-agnostic (driven by session.currentJourneyId and
+      // session.currentStageIndex, not hardcoded to any specific customer);
+      // only the Robert-specific fallback burst further down stays gated to
+      // PRIYA_CUSTOMER_ID specifically, so it doesn't fire for anyone else.
+      if ((session.currentJourneyId === "loan-card-crosssell" || session.currentJourneyId === "wealth-management" || session.currentJourneyId === "digital-activation-onboarding" || session.currentJourneyId === "priority-banking-upgrade" || session.currentJourneyId === "sme-cards-payments" || session.currentJourneyId === "sme-loyalty-protection" || session.currentJourneyId === "sme-lending-working-capital" || session.currentJourneyId === "sme-digital-banking-cashflow" || session.currentJourneyId === "new-customer-acquisition" || session.currentJourneyId === "in-market-card-intent" || session.currentJourneyId === "in-market-loan-intent" || session.currentJourneyId === "transaction-digital-deepening" || session.currentJourneyId === "ofw-family") && !session.outage) {
+        const journey = getJourneyById(session.currentJourneyId);
+        const stage = journey?.stages[session.currentStageIndex || 0];
+        if (stage) {
+          const alreadyLogged = session.log.some(e => e.type === "impression" && e.journeyId === journey.id && e.text.startsWith(`[${stage.stage}]`));
+          if (journey.id === "priority-banking-upgrade") {
+            // Diego: the Container API is called exactly once per session
+            // (ensureDiegoContainerOffers, js/cdh.js — a no-op if already
+            // cached), never again per stage, and never falls back to the
+            // local mock catalog — every stage view filters that same
+            // cached response through the existing title-based journey
+            // mapping (filterOffersForStage). If the one-time response
+            // never included a given stage's titles, that stage will
+            // legitimately show no personalized offers for the rest of
+            // this journey — see DEVELOPER_HANDOVER.md §52.
+            await ensureDiegoContainerOffers(session, customer);
+            // Clears a stale "dismissed" auto-resolve on a Mission Completed
+            // title before it can wrongly hide that offer below. Needed here
+            // (not just in handleRespond's Diego block) because some actions
+            // that complete a mission — e.g. "Open a New Investment Account",
+            // finalized via investment-application.html's own handleFinalize
+            // — record their accept through respondToOffer directly and
+            // land back on this fresh loadOffers() path, never passing
+            // through handleRespond's own clearStaleMissionCompletedResolve
+            // call. Without this, Mission Completed stays hidden forever
+            // once its mission finishes that way, even though the filter
+            // below is otherwise ready to show it.
+            clearStaleMissionCompletedResolve(session);
+            // Fires "pega_nba_mission_comp" the moment a Mission Completed
+            // card is newly eligible to show here (its mission just became
+            // complete) — not awaited, since it's a side-effect log/API
+            // call that shouldn't delay this fetch (see its own comment,
+            // js/cdh.js, for the dedup/one-time-per-mission logic).
+            notifyDiegoMissionCompletedIfNewlyEligible(session, customer);
+            const matched = filterOffersForStage(session.diegoContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.diegoContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "loan-card-crosssell" && session.robertBrazeEnabled) {
+            // Robert, Braze toggle ON: swaps the CDH Container call for a
+            // simulated Braze Canvas trigger + Banners flow, run fresh on
+            // every stage view rather than cached once — see
+            // simulateBrazeCanvasAndBanner (js/cdh.js) for the full
+            // reasoning. Explicit, scoped, Robert-only, "for now."
+            const brazeResult = await simulateBrazeCanvasAndBanner(session, customer, stage);
+            dashState.offers = brazeResult.offers.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = brazeResult.meta;
+          } else if (journey.id === "loan-card-crosssell") {
+            // Robert: same one-time-container pattern as Diego above, "for
+            // now" (explicit, scoped request) — ensureRobertContainerOffers
+            // (js/cdh.js) calls the real Container API exactly once, at
+            // login, and every stage from here on filters that same cached
+            // response. If the one-time response never included a given
+            // stage's titles, that stage will legitimately show no
+            // personalized offers for the rest of this session — same
+            // caveat already accepted for Diego (§52).
+            await ensureRobertContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.robertContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.robertContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "wealth-management") {
+            // Aria: same one-time-container pattern as Diego/Robert above,
+            // "for now" (explicit, scoped request) — ensureAriaContainerOffers
+            // (js/cdh.js) calls the real Container API exactly once, at
+            // login, and every stage from here on filters that same cached
+            // response. If the one-time response never included a given
+            // stage's titles, that stage will legitimately show no
+            // personalized offers for the rest of this session — same
+            // caveat already accepted for Diego (§52) and Robert (§88).
+            await ensureAriaContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.ariaContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.ariaContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "digital-activation-onboarding") {
+            // Maya: same one-time-container pattern as Diego/Robert/Aria
+            // above — ensureMayaContainerOffers (js/cdh.js) calls the real
+            // Container API exactly once, at login, and every stage from
+            // here on filters that same cached response. If the one-time
+            // response never included a given stage's titles, that stage
+            // will legitimately show no personalized offers for the rest of
+            // this session — same caveat already accepted for Diego (§52),
+            // Robert (§88), and Aria (§92).
+            await ensureMayaContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.mayaContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.mayaContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "sme-cards-payments") {
+            // Farah: same one-time-container pattern as Diego/Robert/Aria/
+            // Maya above — ensureFarahContainerOffers (js/cdh.js) calls the
+            // real Container API exactly once, at login, and every stage
+            // from here on filters that same cached response. Originally
+            // always-mock (§103) since these actions weren't configured in
+            // Pega yet; switched to live-first once they were (§125), then
+            // to this one-call-per-session pattern as a follow-up so it
+            // doesn't call the Container API fresh on every stage view.
+            await ensureFarahContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.farahContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.farahContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "sme-loyalty-protection") {
+            // Carlos: same one-time-container pattern as Farah above.
+            await ensureCarlosContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.carlosContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.carlosContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "sme-lending-working-capital") {
+            // Elena: same one-time-container pattern as Farah above.
+            await ensureElenaContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.elenaContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.elenaContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "sme-digital-banking-cashflow") {
+            // Daniela: same one-time-container pattern as Farah above.
+            await ensureDanielaContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.danielaContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.danielaContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "new-customer-acquisition") {
+            // Sam: same one-time-container pattern as Farah above — added
+            // after his §131 stage-scoped rollout hit the same live-backend
+            // throttling already seen for Elena when calling fresh per stage.
+            await ensureSamContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.samContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.samContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "in-market-card-intent") {
+            // Leo: same one-time-container pattern as Farah/Sam above.
+            await ensureLeoContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.leoContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.leoContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "in-market-loan-intent") {
+            // Naomi: same one-time-container pattern as Farah/Sam/Leo above.
+            await ensureNaomiContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.naomiContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.naomiContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "transaction-digital-deepening") {
+            // Maria: same one-time-container pattern as Maya/Naomi above.
+            await ensureMariaContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.mariaContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.mariaContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else if (journey.id === "ofw-family") {
+            // Angelica: same one-time-container pattern as Maya/Naomi above.
+            await ensureAngelicaContainerOffers(session, customer);
+            const matched = filterOffersForStage(session.angelicaContainerOffers, stage);
+            dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            dashState.meta = session.angelicaContainerMeta;
+            if (!alreadyLogged) {
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+            }
+          } else {
+            try {
+              const result = await simulateCDHRequest(customer);
+              const matched = filterOffersForStage(result.offers, stage);
+              // Hide any offer within this stage that's already been
+              // responded to (accepted or dismissed) — a stage can have more
+              // than one offer (e.g. Aria's Planning stage has two), and once
+              // one is handled it shouldn't keep cluttering the panel while
+              // the customer is still working through the rest of the stage.
+              // Checked via journeyActionResponses (keyed by normalized
+              // title), not the id-keyed `responses` map — same reasoning as
+              // maybeAdvanceJourneyStage's gating logic (§23): a live CDH
+              // response's offer id can differ from OFFER_CATALOG's id, so
+              // matching by title is what actually stays correct regardless
+              // of which path served this offer. Logging below still uses
+              // the unfiltered `matched` list, so the impression record
+              // reflects everything the stage actually returned, not just
+              // what's currently still visible.
+              dashState.offers = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+              dashState.meta = result.meta;
+              if (!alreadyLogged) {
+                matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+              }
+            } catch (err) {
+              pushSessionLog(session, "system", `[${stage.stage}] CDH call failed (${err.message}) — using local mock strategy`, journey.id);
+              const scored = filterOffersForStage(scoreOffers(OFFER_CATALOG, customer), stage);
+              dashState.offers = scored.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+              dashState.meta = { fallback: true, channel: "Web", subjectId: customer.id, direction: "Inbound" };
+              if (!alreadyLogged) {
+                scored.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title} (mock)`, journey.id, o.id));
+              }
+            }
+          }
+          if (journey.id === "priority-banking-upgrade") {
+            dashState.offers = applyPriorityBankingCampaignAdjustments(dashState.offers, session, stage);
+          }
+          dashState.loading = false;
+          // Persisted so Agent Desktop can reuse this exact result instead
+          // of firing its own separate container call — see the matching
+          // read in agent-desktop.html's refreshOffers(). Storing offer ids
+          // only (not the full offer objects) since those carry function
+          // properties (eligibility, propensity) that JSON.stringify would
+          // silently drop; ids are enough to re-hydrate the same offers
+          // from OFFER_CATALOG on the other end.
+          session.lastFetchedOfferIds = dashState.offers.map(o => o.id);
+          session.lastFetchedMeta = dashState.meta;
+          session.lastFetchedAt = Date.now();
+          applyOfferedRateToOffers(dashState.offers, session);
+          saveSession(session);
+          paint();
+          augmentLoanAmountTiles(dashState.offers, paint, session.lastLoanTerms);
+          return;
+        }
+      }
+
+      if (session.outage) {
+        await new Promise(r => setTimeout(r, 500));
+        dashState.offers = FALLBACK_OFFERS;
+        dashState.meta = { fallback: true, channel: "Web", subjectId: customer.id, direction: "Inbound" };
+        pushSessionLog(session, "system", "Real-time container timeout — fallback offers served");
+      } else {
+        // Only log the dashboard's "impression" entries the very first time
+        // ever for this customer — checked against log history (which
+        // persists across page loads and syncs with the mobile app), not
+        // just an in-memory flag, so reloading this page or clicking Refresh
+        // doesn't keep re-adding the same noise and crowding out real
+        // accept/dismiss entries in the ledger.
+        const alreadyLoggedDashboardImpressions = session.log.some(e => e.type === "impression" && e.journeyId == null);
+        try {
+          const result = await simulateCDHRequest(customer);
+          let liveOffers = result.offers;
+          const journeyTitles = getJourneyActionTitleSet(customer);
+          if (journeyTitles.size > 0) {
+            liveOffers = liveOffers.filter(o => journeyTitles.has(normalizeActionTitle(o.title)));
+          }
+          dashState.offers = liveOffers;
+          dashState.meta = result.meta;
+          if (!alreadyLoggedDashboardImpressions) {
+            liveOffers.forEach(o => {
+              const p = typeof o.priority === "number" ? o.priority.toFixed(3) : o.priority;
+              pushSessionLog(session, "impression", `Impression logged Pega CDH RTC — ${o.title} (priority ${p})`, null, o.id);
+            });
+          }
+        } catch (err) {
+          pushSessionLog(session, "system", `CDH call failed (${err.message}) — using local mock strategy`);
+          const mockResult = await simulateCDHRequestMock(customer);
+          let mockOffers = mockResult.offers;
+          const mockJourneyTitles = getJourneyActionTitleSet(customer);
+          if (mockJourneyTitles.size > 0) {
+            mockOffers = mockOffers.filter(o => mockJourneyTitles.has(normalizeActionTitle(o.title)));
+          }
+          dashState.offers = mockOffers;
+          dashState.meta = mockResult.meta;
+          if (!alreadyLoggedDashboardImpressions) {
+            mockOffers.forEach(o => {
+              pushSessionLog(session, "impression", `Impression logged Pega CDH RTC — ${o.title} (priority ${o.priority})`, null, o.id);
+            });
+          }
+        }
+      }
+
+      // Priority still decides WHICH offers are selected — this only
+      // reorders the top 3 that will actually be shown, so they follow the
+      // customer's journey stage sequence instead of raw priority order.
+      const topByPriority = dashState.offers.slice(0, 3);
+      const rest = dashState.offers.slice(3);
+      dashState.offers = [...sortOffersByJourneyStage(topByPriority, customer), ...rest];
+
+      dashState.loading = false;
+      // Same reuse-persistence as the stage-scoped branch above, for the
+      // generic (non-stage-scoped) and outage-fallback paths.
+      session.lastFetchedOfferIds = dashState.offers.map(o => o.id);
+      session.lastFetchedMeta = dashState.meta;
+      session.lastFetchedAt = Date.now();
+      saveSession(session);
+      paint();
+    }
+
+    // ---- Handlers referenced by rendered HTML's onclick attributes ----
+    // Explicitly attached to window: these are declared inside an `if` block,
+    // and inline onclick="" attributes need a genuine global to resolve.
+    window.handleSignOut = function () {
+      if (window.analytics && typeof window.analytics.reset === "function") {
+        window.analytics.reset();
+      }
+      clearSession();
+      window.location.href = "login.html";
+    };
+    window.handleToggleOutage = function () {
+      session.outage = !session.outage;
+      saveSession(session);
+      loadOffers();
+    };
+    window.handleRefresh = function () {
+      loadOffers();
+    };
+    window.handleToggleBalanceVisibility = function () {
+      dashState.balanceHidden = !dashState.balanceHidden;
+      paint();
+    };
+    // Same click-to-toggle dropdown pattern as browse.html's Personal
+    // Banking menu — not hover-based, closes on an outside click.
+    window.toggleExploreViewsMenu = function (event) {
+      event.stopPropagation();
+      document.getElementById("exploreViewsMenu")?.classList.toggle("open");
+    };
+    document.addEventListener("click", (event) => {
+      const menu = document.getElementById("exploreViewsMenu");
+      if (menu && !menu.contains(event.target)) {
+        menu.classList.remove("open");
+      }
+    });
+    window.handleToggleExpand = function (offerId) {
+      dashState.expandedId = dashState.expandedId === offerId ? null : offerId;
+      paint();
+    };
+    // Keeps session.lastFetchedOfferIds correct after ANY response, not just
+    // the plain "stay on the dashboard" path — originally only the "stage
+    // didn't change" branch below did this (§27.1), but the two "Apply Now"
+    // handlers further down (In-Session Loan Calculator, Personal Loan
+    // Offer) navigate away immediately after respondToOffer() and never
+    // reached that branch at all, so the cache stayed stale — showing the
+    // customer's PREVIOUS stage's offers — for as long as they remained on
+    // emi-calculator.html/new-application.html, i.e. exactly the window an
+    // agent checking Agent Desktop mid-application would actually hit.
+    async function syncOfferReuseCache(stageBefore, offerId) {
+      if (session.currentStageIndex !== stageBefore) {
+        // Stage advanced — fetch (and thereby persist) the new stage's
+        // offers properly, same as loadOffers() would do for the
+        // stay-on-dashboard case. Safe to await even though we're about to
+        // navigate away right after — it finishes well before the browser
+        // actually unloads this page.
+        await loadOffers();
+      } else {
+        dashState.offers = dashState.offers.filter(o => o.id !== offerId);
+        session.lastFetchedOfferIds = dashState.offers.map(o => o.id);
+        saveSession(session);
+      }
+    }
+
+    window.handleRespond = async function (offerId, status) {
+      const wasAvailableMission = customer.id === "C1004" && dashState.availableMissions.some(o => o.id === offerId);
+      const offer = findAnyDashOffer(offerId);
+      if (!offer) return;
+      const stageBefore = session.currentStageIndex;
+      await respondToOffer(session, offer, status, { journeyId: session.currentJourneyId || null, meta: dashState.meta });
+      if (status === "accepted" && normalizeActionTitle(offer.title) === normalizeActionTitle("In-Session Loan Calculator")) {
+        await syncOfferReuseCache(stageBefore, offerId);
+        window.location.href = "emi-calculator.html";
+        return;
+      }
+      // Diego's Available Missions/Milestones sections need recomputing
+      // after every response (not just ones that originated there) — e.g.
+      // accepting a mission from Personalized Offers can newly unlock an
+      // Engage milestone that should now appear.
+      let scratchReveal = null;
+      if (customer.id === "C1004") {
+        // Scratching a card reveals its prize right there, in that same
+        // card, instead of surfacing a separate "500 Points Earned"-style
+        // offer elsewhere in Personalized Offers — matches how a real
+        // scratch card actually works (scratch it, see what's underneath,
+        // right then). The paired reward is still recorded for real via its
+        // own respondToOffer call (same as any other accept), so
+        // Interaction History and Scratch & Win's own stage-advancement
+        // rule (every title needs a response) both stay correct — it just
+        // never gets a visible card of its own. See
+        // getDiegoScratchRevealDescription (js/cdh.js) for where the actual
+        // reveal copy comes from.
+        if (status === "accepted") {
+          const rewardTitle = DIEGO_SCRATCH_REWARD_TITLE[normalizeActionTitle(offer.title)];
+          if (rewardTitle) {
+            const rewardOffer = getDiegoContainerOfferByTitle(session, rewardTitle);
+            if (rewardOffer && session.journeyActionResponses[normalizeActionTitle(rewardTitle)] === undefined) {
+              await respondToOffer(session, rewardOffer, "accepted", { journeyId: session.currentJourneyId || null, meta: dashState.meta });
+            }
+            scratchReveal = getDiegoScratchRevealDescription(offer.title, session);
+          }
+        }
+        // Registering for a mission via Available Missions specifically
+        // (not Personalized Offers itself) means its Engage action(s) may
+        // carry a stale "dismissed" auto-resolve from an earlier Engage
+        // stage view that happened while this mission was still
+        // unregistered — clear that BEFORE recomputing anything below, or
+        // getDiegoAvailableMissions/Milestones and the merge further down
+        // will all keep treating it as already handled. See
+        // clearStaleMissionEngageResolve's own comment (js/cdh.js) for why.
+        if (wasAvailableMission && status === "accepted") {
+          clearStaleMissionEngageResolve(offer.title, session);
+        }
+        // A mission can also complete late this same way one stage further
+        // along — e.g. accepting the last Engage action for a mission via
+        // Available Milestones, after Earn stage already auto-resolved that
+        // mission's "Mission Completed" to "dismissed" while it was still
+        // incomplete. Safe to run on every response — see its own comment.
+        clearStaleMissionCompletedResolve(session);
+        // Fires "pega_nba_mission_comp" the moment this response is what
+        // just made a Mission Completed card eligible — e.g. accepting the
+        // last Engage action here. Not awaited — see its own comment
+        // (js/cdh.js) for the dedup/one-time-per-mission logic.
+        notifyDiegoMissionCompletedIfNewlyEligible(session, customer);
+        dashState.availableMissions = getDiegoAvailableMissions(session, customer);
+        dashState.availableMilestones = getDiegoAvailableMilestones(session, customer);
+        // Progress Monitor (getDiegoProgressMonitor, js/cdh.js) is computed
+        // fresh from mission state on every response, same as Available
+        // Missions/Milestones above — not stage-scoped, not merged, so none
+        // of the "wrong stage, re-merge it back in" fixes that Track Your
+        // Progress needed while it lived in Personalized Offers apply here.
+        dashState.progressMonitor = getDiegoProgressMonitor(session, customer);
+        let dashOffersChanged = false;
+        // He may have already advanced past Engage by registering for the
+        // OTHER mission first — Personalized Offers' own stage-scoped fetch
+        // would then never pick up this mission's Engage action(s) on its
+        // own, so merge them in directly rather than leaving them to
+        // surface only via Available Milestones.
+        if (wasAvailableMission && status === "accepted") {
+          const unlocked = getDiegoEngageOffersForMission(offer.title, session, customer);
+          unlocked.forEach(u => {
+            if (!dashState.offers.some(existing => normalizeActionTitle(existing.title) === normalizeActionTitle(u.title))) {
+              dashState.offers.push(u);
+              dashOffersChanged = true;
+            }
+          });
+        }
+        // Same idea for a Mission Completed card that just became eligible
+        // — he may have already advanced past Earn by completing the OTHER
+        // mission first.
+        getDiegoNewlyCompletedMissionOffers(session, customer).forEach(u => {
+          if (!dashState.offers.some(existing => normalizeActionTitle(existing.title) === normalizeActionTitle(u.title))) {
+            dashState.offers.push(u);
+            dashOffersChanged = true;
+          }
+        });
+        // Same idea one stage further along still — a scratch card (or the
+        // reward tile it unlocks) can become newly eligible from a response
+        // that never touches Scratch & Win's own fetch, e.g. accepting a
+        // Mission Completed card that only just got merged in above.
+        getDiegoUnlockedScratchOffers(session, customer).forEach(u => {
+          if (!dashState.offers.some(existing => normalizeActionTitle(existing.title) === normalizeActionTitle(u.title))) {
+            dashState.offers.push(u);
+            dashOffersChanged = true;
+          }
+        });
+        // Keeps the three scratch cards reading Card 1, then 2, then 3
+        // regardless of what order they were merged in above — see
+        // sortDiegoScratchCards's own comment (js/cdh.js) for why this can't
+        // just be left to whatever order the merges happened to produce.
+        dashState.offers = sortDiegoScratchCards(dashState.offers);
+        if (dashOffersChanged) {
+          session.lastFetchedOfferIds = dashState.offers.map(o => o.id);
+          saveSession(session);
+        }
+      }
+      if (session.currentStageIndex !== stageBefore) {
+        // Journey stage advanced (Robert's/Aria's/Diego's flow) — re-fetch
+        // so Personalized Offers immediately shows the new stage's
+        // action(s), rather than staying on the just-accepted one until a
+        // manual refresh.
+        await loadOffers();
+        // Diego's Earn stage advances the moment EITHER Mission Completed
+        // variant is accepted (session.js's maybeAdvanceJourneyStage) — but
+        // if BOTH missions happened to be complete at once, the OTHER
+        // mission's own still-unresponded Mission Completed card was sitting
+        // in Personalized Offers a moment ago and just got silently wiped by
+        // loadOffers() above, which replaced dashState.offers wholesale with
+        // the stage he advanced INTO (Scratch & Win) — it has no way back
+        // once its own stage (Earn) is behind him. Re-merge it back in here,
+        // same pattern as every other "still eligible, wrong stage" merge in
+        // this campaign, so he can still act on it instead of it becoming
+        // permanently unreachable.
+        if (customer.id === "C1004") {
+          let reMerged = false;
+          getDiegoNewlyCompletedMissionOffers(session, customer).forEach(u => {
+            if (!dashState.offers.some(existing => normalizeActionTitle(existing.title) === normalizeActionTitle(u.title))) {
+              dashState.offers.push(u);
+              reMerged = true;
+            }
+          });
+          // Scratching the LAST Scratch & Win title Diego still needed a
+          // response for both reveals a prize (scratchReveal, above) AND
+          // completes every one of that stage's actions at once, advancing
+          // straight to Fulfil in the same response — so loadOffers() just
+          // replaced dashState.offers wholesale before he ever got to see
+          // what he won. Append the just-scratched card, revealed, onto the
+          // stage he landed on rather than losing it — same "still worth
+          // showing, wrong stage" reasoning as the Mission Completed merge
+          // above, just for a card he already fully resolved instead of one
+          // still awaiting a response. Card 3 specifically is excluded from
+          // this — its own CTA is "Fulfillment Info" (not "Scratch"), and
+          // clicking it is meant to cleanly hand Diego off to Fulfil's own
+          // two offers rather than leaving a scratched card lingering next
+          // to them, unlike Card 1/2's reveal-in-place behavior.
+          if (scratchReveal && normalizeActionTitle(offer.title) !== normalizeActionTitle("Your Third Scratch Card, Looks Like You're a Pro")) {
+            dashState.offers.push({ ...offer, description: scratchReveal });
+            reMerged = true;
+          }
+          if (reMerged) {
+            dashState.offers = sortDiegoScratchCards(dashState.offers);
+            session.lastFetchedOfferIds = dashState.offers.map(o => o.id);
+            saveSession(session);
+            paint();
+          }
+        }
+      } else if (scratchReveal) {
+        // A scratch card was just scratched, and its stage didn't change —
+        // keep the card itself in place (rather than removing it like any
+        // other responded offer below) and swap its description for the
+        // reveal text, so the prize shows right there in the same card.
+        // responses[offer.id] is already "accepted" from respondToOffer
+        // above, so renderOfferCard shows the "Accepted" badge instead of
+        // the buttons on its own — nothing else to change.
+        const idx = dashState.offers.findIndex(o => o.id === offerId);
+        if (idx !== -1) dashState.offers[idx] = { ...dashState.offers[idx], description: scratchReveal };
+        session.lastFetchedOfferIds = dashState.offers.map(o => o.id);
+        saveSession(session);
+        paint();
+      } else if (customer.id === "C1004" && DIEGO_FULFIL_TITLES.includes(normalizeActionTitle(offer.title))) {
+        // Fulfil-stage offers stay visible after a response instead of
+        // being removed — it's the last stage of Diego's journey, so
+        // there's no "clear it to make room for what's next" reason the
+        // way there is everywhere else. responses[offer.id] is already set
+        // by respondToOffer above, so renderOfferCard's own "Accepted"/
+        // "Dismissed" badge takes over on its own — nothing else to do
+        // beyond persisting and repainting.
+        session.lastFetchedOfferIds = dashState.offers.map(o => o.id);
+        saveSession(session);
+        paint();
+      } else {
+        // Stage didn't change — most likely because this stage has more
+        // than one offer and at least one is still unaddressed, or the
+        // response came from Available Missions/Milestones instead (which
+        // never changes stage on its own — see maybeAdvanceJourneyStage's
+        // isCurrentStageOffer check, js/session.js). Remove just the
+        // responded one from view immediately (matching the same "hide
+        // responded offers" filter loadOffers() itself applies on a fresh
+        // fetch) rather than leaving it sitting there with a response badge
+        // until the next reload.
+        dashState.offers = dashState.offers.filter(o => o.id !== offerId);
+        session.lastFetchedOfferIds = dashState.offers.map(o => o.id);
+        saveSession(session);
+        paint();
+      }
+    };
+    window.handleApplyLoanCalculator = async function (offerId) {
+      const offer = dashState.offers.find(o => o.id === offerId);
+      if (!offer) return;
+      const stageBefore = session.currentStageIndex;
+      await respondToOffer(session, offer, "accepted", { journeyId: session.currentJourneyId || null, meta: dashState.meta });
+      await syncOfferReuseCache(stageBefore, offerId);
+      resetApplication(session);
+      window.location.href = "new-application.html?stage=0";
+    };
+    window.handleApplySip = function (offerId) {
+      const offer = dashState.offers.find(o => o.id === offerId);
+      if (!offer) return;
+      // Deliberately NOT calling respondToOffer here — that would mark the
+      // offer "accepted" (and, since Aria's Consideration stage has only
+      // this one action, immediately advance her journey stage) the moment
+      // she clicks Apply Now, regardless of whether she actually finishes
+      // the wizard or abandons it right after. The real response is now
+      // recorded by sip-application.html itself, only once she genuinely
+      // finishes (handleFinalize) — abandoning (handleExit) records nothing,
+      // so the offer stays open to try again and the stage doesn't move.
+      session.pendingSipOffer = { offer, journeyId: session.currentJourneyId || null, meta: dashState.meta };
+      resetSipApplication(session);
+      window.location.href = "sip-application.html?stage=0";
+    };
+    window.handleApplyInvestmentAccount = function (offerId) {
+      const offer = findAnyDashOffer(offerId);
+      if (!offer) return;
+      // Same deferred-response reasoning as handleApplySip above — the real
+      // response is recorded by investment-application.html's own
+      // handleFinalize(), only once Diego genuinely finishes the wizard.
+      session.pendingInvestmentOffer = { offer, journeyId: session.currentJourneyId || null, meta: dashState.meta };
+      resetInvestmentApplication(session);
+      window.location.href = "investment-application.html?stage=0";
+    };
+    window.handleFocusJourneyAction = function (title) {
+      const offer = dashState.offers.find(o => normalizeActionTitle(o.title) === normalizeActionTitle(title));
+      if (offer) {
+        dashState.expandedId = offer.id;
+        paint();
+        setTimeout(() => {
+          const el = document.getElementById("offer-" + offer.id);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 30);
+      } else {
+        pushSessionLog(session, "system", `"${title}" is not currently ranked for this customer — try Refresh or a different profile.`);
+        saveSession(session);
+        paint();
+      }
+    };
+    window.handleStartNewApplication = function () {
+      resetApplication(session);
+      window.location.href = "new-application.html?stage=0";
+    };
+    window.handleTriggerBrevoEvent = async function () {
+      dashState.brevoTrigger = { status: "sending" };
+      paint();
+      const result = await triggerBrevoDecisionEvent(customer);
+      if (result.status === "ok") {
+        dashState.brevoTrigger = { status: "ok" };
+        pushSessionLog(session, "system", `Brevo automation event "pega_nba_decision" sent for ${customer.name}.`);
+      } else {
+        dashState.brevoTrigger = { status: "error", error: result.error };
+        pushSessionLog(session, "system", `Brevo automation event failed: ${result.error}`);
+      }
+      saveSession(session);
+      paint();
+    };
+
+    if (customer.id === "C1004") {
+      dashState.availableMissions = getDiegoAvailableMissions(session, customer);
+      dashState.availableMilestones = getDiegoAvailableMilestones(session, customer);
+      dashState.progressMonitor = getDiegoProgressMonitor(session, customer);
+    }
+    paint();
+    loadOffers();
+    if (EVENT_STORE_CUSTOMER_IDS.includes(customer.id)) {
+      loadSupabaseEvents();
+    }
+
+    // Live cross-app sync: the browser fires this event in this tab whenever
+    // a DIFFERENT same-origin tab (the mobile app) writes to the shared
+    // Fired by sendDeepeningStageEmail() once the Brevo call resolves (or
+    // fails) — that function lives in the shared session.js and doesn't
+    // know which page's own paint/render function to call directly, so it
+    // dispatches this instead.
+    window.addEventListener("sessionLogUpdated", () => paint());
+
+    // session key. Merges ledger (log + responses) for ANY customer — e.g.
+    // accepting an offer on the mobile app shows up here live — and, for
+    // Robert and Diego specifically, also re-fetches/recomputes Personalized
+    // Offers if their journey stage advanced. Diego's jar/container merge
+    // below mirrors mobile-app.html's own identical storage listener block —
+    // this side was previously missing it entirely, so his Pending Missions/
+    // Milestones/Progress Monitor panels only ever picked up mobile-originated
+    // changes on this tab's NEXT reload, never live while both were open at
+    // once (the ledger and each card's own accept/dismiss badge already
+    // updated live either way, via the generic merge above).
+    window.addEventListener("storage", (event) => {
+      if (event.key !== SESSION_KEY || !event.newValue) return;
+      let shared;
+      try {
+        shared = JSON.parse(event.newValue);
+      } catch (err) {
+        return;
+      }
+      if (shared.customerId !== customer.id) return;
+
+      // Apply Robert's synced "loan disbursed" fact to this page's own
+      // in-memory customer object, since that mutation otherwise never
+      // carries over from whichever app originally triggered it.
+      if (shared.loanDisbursedCustomerIds?.includes(customer.id)) {
+        customer.numLoanAccounts = 1;
+      }
+
+      const merged = mergeLedgerData({ log: session.log, responses: session.responses }, shared);
+      const ledgerChanged = merged.log[0]?.id !== session.log[0]?.id || merged.log.length !== session.log.length;
+      session.log = merged.log;
+      session.responses = merged.responses;
+
+      // Diego's jar/container cache can change on the OTHER surface
+      // independently of a stage move (e.g. mobile registers his second
+      // mission, or populates the container cache for the first time) —
+      // merged in unconditionally, ahead of the stage check below, so
+      // loadOffers()'s Diego branch and the Available Missions/Milestones/
+      // Progress Monitor recompute both see the up-to-date jar regardless
+      // of whether his stage also happened to change in the same write.
+      let diegoDataChanged = false;
+      if (customer.id === "C1004") {
+        if (shared.journeyActionResponses) {
+          const mergedJar = { ...session.journeyActionResponses, ...shared.journeyActionResponses };
+          if (JSON.stringify(mergedJar) !== JSON.stringify(session.journeyActionResponses)) {
+            session.journeyActionResponses = mergedJar;
+            diegoDataChanged = true;
+          }
+        }
+        if (Array.isArray(shared.diegoContainerOffers) && !session.diegoContainerOffers) {
+          session.diegoContainerOffers = shared.diegoContainerOffers;
+          session.diegoContainerMeta = shared.diegoContainerMeta || null;
+          diegoDataChanged = true;
+        }
+      }
+
+      const stageChanged = (shared.currentJourneyId === "loan-card-crosssell" || shared.currentJourneyId === "priority-banking-upgrade" || shared.currentJourneyId === "wealth-management" || shared.currentJourneyId === "digital-activation-onboarding" || shared.currentJourneyId === "sme-cards-payments" || shared.currentJourneyId === "sme-loyalty-protection" || shared.currentJourneyId === "sme-lending-working-capital" || shared.currentJourneyId === "sme-digital-banking-cashflow" || shared.currentJourneyId === "new-customer-acquisition") && shared.currentStageIndex !== session.currentStageIndex;
+      if (stageChanged) {
+        session.currentJourneyId = shared.currentJourneyId;
+        session.currentStageIndex = shared.currentStageIndex;
+        if (customer.id === "C1004") {
+          dashState.availableMissions = getDiegoAvailableMissions(session, customer);
+          dashState.availableMilestones = getDiegoAvailableMilestones(session, customer);
+          dashState.progressMonitor = getDiegoProgressMonitor(session, customer);
+        }
+        loadOffers(); // re-fetch/recompute for the new stage, renders internally
+      } else if (diegoDataChanged) {
+        dashState.availableMissions = getDiegoAvailableMissions(session, customer);
+        dashState.availableMilestones = getDiegoAvailableMilestones(session, customer);
+        dashState.progressMonitor = getDiegoProgressMonitor(session, customer);
+        loadOffers(); // recomputes Personalized Offers from the merged jar/container — no live call, ensureDiegoContainerOffers no-ops since already cached
+      } else if (ledgerChanged) {
+        saveSession(session);
+        paint();
+      }
+    });
+  }
+</script>
+</body>
+</html>

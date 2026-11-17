@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<!-- Segment Analytics — disabled on this screen (only active on the New Application wizard\'s Abandoned Application / Confirmation stage). <script>   !function(){var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/" + key + "/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="rXdBVA5oE27vBDqifUzSmXs2K3pHoD8R";;analytics.SNIPPET_VERSION="5.2.0";   analytics.load("rXdBVA5oE27vBDqifUzSmXs2K3pHoD8R");   analytics.page();   }}(); </script> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instellars — Guided Journey</title>
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+<div id="app" class="bnk-root"></div>
+
+<script src="js/data.js"></script>
+<script src="js/cdh.js"></script>
+<script src="js/session.js"></script>
+<script src="js/behavioral.js"></script>
+<script src="js/explainability.js"></script>
+<script src="js/render-shared.js"></script>
+<script>
+  const customer = requireLoggedInCustomer();
+
+  if (customer) {
+    const session = loadSession();
+    const params = new URLSearchParams(window.location.search);
+    const journey = getJourneyById(params.get("journey"));
+    const stageIndex = Math.max(0, parseInt(params.get("stage"), 10) || 0);
+
+    if (!journey || !journeyMatchesCustomer(journey, customer.id)) {
+      // Not a valid journey for this customer — back to the dashboard rather
+      // than showing a broken screen.
+      window.location.href = "dashboard.html";
+    } else if (stageIndex < 0 || stageIndex >= journey.stages.length) {
+      window.location.href = `journey.html?journey=${encodeURIComponent(journey.id)}&stage=0`;
+    } else {
+      const stage = journey.stages[stageIndex];
+      const dataKey = `${journey.id}::${stage.stage}`;
+      const transitionParam = params.get("transition");
+      const pendingTransitionIndex = transitionParam !== null ? parseInt(transitionParam, 10) : null;
+      const pendingTransition = (pendingTransitionIndex != null && journey.stages[pendingTransitionIndex])
+        ? getStageTransition(journey.id, stage.stage, journey.stages[pendingTransitionIndex].stage)
+        : null;
+
+      // Record "current position" so the mobile app (same domain, shared
+      // localStorage) can pick this up — either on its next load, or
+      // instantly via the storage event if it's open in another tab.
+      session.currentJourneyId = journey.id;
+      session.currentStageIndex = stageIndex;
+      saveSession(session);
+
+      function stageHref(i) {
+        return `journey.html?journey=${encodeURIComponent(journey.id)}&stage=${i}`;
+      }
+
+      // Routes through a transition-explainer screen when one is defined for
+      // this specific stage-to-stage move (currently only Personal Loan &
+      // Card Cross-Sell's Prospect -> Consideration) — otherwise links
+      // straight to the target stage, same as before.
+      function nextStageHref(targetIndex) {
+        const targetStage = journey.stages[targetIndex];
+        if (targetStage && getStageTransition(journey.id, stage.stage, targetStage.stage)) {
+          return `journey.html?journey=${encodeURIComponent(journey.id)}&stage=${stageIndex}&transition=${targetIndex}`;
+        }
+        return stageHref(targetIndex);
+      }
+
+      function getStageData() {
+        return session.journeyData[dataKey] || { loading: true, offers: [], meta: null, error: null, source: null };
+      }
+      function setStageData(data) {
+        session.journeyData[dataKey] = data;
+        saveSession(session);
+      }
+
+      function renderTransitionBody() {
+        const toStage = journey.stages[pendingTransitionIndex].stage;
+        const stepsHtml = (pendingTransition.steps || []).map((step, i, arr) => `
+          <div class="bnk-transition-step">
+            <div class="bnk-transition-iconcol">
+              <div class="bnk-transition-icon">${icon(step.icon, 16)}</div>
+              ${i < arr.length - 1 ? `<div class="bnk-transition-line"></div>` : ""}
+            </div>
+            <div class="bnk-transition-body">
+              <div class="bnk-transition-label">${step.label}</div>
+              <div class="bnk-transition-detail">${step.detail}</div>
+            </div>
+          </div>`).join("");
+
+        return `
+          <div>
+            <div class="bnk-header">
+              <div class="bnk-brand" style="margin-bottom:0;">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+              <div class="bnk-header-right">
+                <span style="font-size:0.85rem;">Guided journey \u00b7 ${customer.name}</span>
+                <a class="bnk-signout-btn" style="text-decoration:none;" href="dashboard.html">${icon("x", 14)}<span> Exit to dashboard</span></a>
+              </div>
+            </div>
+            <div class="bnk-body">
+              <div class="bnk-display" style="font-size:1.15rem;margin-bottom:0.25rem;">${pendingTransition.title}</div>
+              <div class="bnk-section-sub" style="margin-bottom:1.2rem;">What actually happens, behind the scenes, between these two stages.</div>
+              <div class="bnk-application-panel">
+                ${stepsHtml}
+              </div>
+              <div class="bnk-journey-nav">
+                <span></span>
+                <a class="bnk-btn-primary" style="flex:none;padding:0.6rem 1.4rem;text-decoration:none;" href="${stageHref(pendingTransitionIndex)}">Continue to ${toStage} ${icon("chevronRight", 14)}</a>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function renderJourneyBody() {
+        const journeyStages = journey.stages;
+        const data = getStageData();
+
+        const stepperHtml = journeyStages.map((s, i) => {
+          const status = i === stageIndex ? "current" : i < stageIndex ? "done" : "upcoming";
+          const dotContent = i < stageIndex ? icon("check", 12) : String(i + 1);
+          const connector = i < journeyStages.length - 1 ? `<div class="bnk-stepper-line ${i < stageIndex ? "done" : ""}"></div>` : "";
+          const href = i === stageIndex + 1 ? nextStageHref(i) : stageHref(i);
+          return `
+            <a class="bnk-stepper-item" style="text-decoration:none;" href="${href}">
+              <span class="bnk-stepper-dot bnk-stepper-${status}">${dotContent}</span>
+              <span class="bnk-stepper-label">${s.stage}</span>
+            </a>${connector}`;
+        }).join("");
+
+        let bodyHtml;
+        if (stage.actions.length === 0) {
+          bodyHtml = `<div class="bnk-journey-empty">No actions have been defined for the ${stage.stage} stage yet.</div>`;
+        } else if (data.loading) {
+          bodyHtml = `<div class="bnk-offers-grid">${stage.actions.map(() => `
+            <div class="bnk-skeleton">
+              <div class="bnk-skeleton-line" style="width:40%;height:12px;margin-bottom:14px;"></div>
+              <div class="bnk-skeleton-line" style="width:80%;height:18px;margin-bottom:10px;"></div>
+              <div class="bnk-skeleton-line" style="width:100%;height:10px;margin-bottom:6px;"></div>
+              <div class="bnk-skeleton-line" style="width:90%;height:10px;"></div>
+            </div>`).join("")}</div>`;
+        } else if (data.offers.length === 0) {
+          bodyHtml = `<div class="bnk-journey-empty">No eligible actions for ${customer.name} at the ${stage.stage} stage right now — try a different customer profile from the login screen.</div>`;
+        } else {
+          const journeyOffersToShow = journey.id === "loan-card-crosssell"
+            ? hideAcceptedPreApprovedOffer(data.offers, session.responses)
+            : data.offers;
+          bodyHtml = journeyOffersToShow.length === 0
+            ? `<div class="bnk-journey-empty">No eligible actions for ${customer.name} at the ${stage.stage} stage right now — try a different customer profile from the login screen.</div>`
+            : `<div class="bnk-offers-grid bnk-offers-grid-journey">${journeyOffersToShow.map(o => renderOfferCard(o, { expandedId: window.__expandedId || null, responses: session.responses, showJourneyStage: false, compact: false, customer, session, allOffers: journeyOffersToShow })).join("")}</div>`;
+        }
+
+        const isWealthAwarenessStage = journey.id === "wealth-management" && stage.stage === "Awareness";
+        const isScratchWinStage = journey.id === "scratch-win-gamification";
+        const stageSubjectId = isWealthAwarenessStage ? "CUST101" : isScratchWinStage ? "CUST36" : customer.id;
+        const stageSubjectName = getCustomerNameById(stageSubjectId);
+        const subjectIdNote = stageSubjectName ? ` · Subject: ${stageSubjectName}` : "";
+
+        const sourceNote = stage.actions.length === 0
+          ? ""
+          : data.loading
+          ? "Calling Instellars Real-Time Engagement Engine…"
+          : data.source === "mock"
+          ? (data.error ? "Local mock strategy (CDH call failed)" : "Local mock strategy (live CDH had no match for this campaign)")
+          : data.meta
+          ? `Live · Instellars Real-Time Engagement Engine · ${data.meta.latencyMs}ms${subjectIdNote}`
+          : "";
+
+        const isLast = stageIndex === journeyStages.length - 1;
+        const questPanelHtml = journey.id === "scratch-win-gamification" && stage.stage === "Missions" ? renderQuestStatusPanel() : "";
+
+        return `
+          <div>
+            <div class="bnk-header">
+              <div class="bnk-brand" style="margin-bottom:0;">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+              <div class="bnk-header-right">
+                <span style="font-size:0.85rem;">Guided journey · ${customer.name}</span>
+                <a class="bnk-signout-btn" style="text-decoration:none;" href="dashboard.html">${icon("x", 14)}<span> Exit to dashboard</span></a>
+              </div>
+            </div>
+            <div class="bnk-body">
+              <div class="bnk-stepper-row">${stepperHtml}</div>
+
+              <div class="bnk-journey-stage-header">
+                <div>
+                  <div class="bnk-display bnk-section-title">${stage.stage}</div>
+                  <div class="bnk-section-sub">${sourceNote}</div>
+                </div>
+                <button class="bnk-icon-btn" onclick="handleRefreshStage()">${icon("refreshCw", 13)} Refresh</button>
+              </div>
+
+              ${questPanelHtml}
+
+              ${bodyHtml}
+
+              <div class="bnk-journey-nav">
+                ${stageIndex === 0
+                  ? `<button class="bnk-btn-ghost" disabled>${icon("chevronLeft", 14)} Back</button>`
+                  : `<a class="bnk-btn-ghost" style="text-decoration:none;" href="${stageHref(stageIndex - 1)}">${icon("chevronLeft", 14)} Back</a>`}
+                <a class="bnk-btn-primary" style="flex:none;padding:0.6rem 1.4rem;text-decoration:none;" href="${isLast ? "dashboard.html" : nextStageHref(stageIndex + 1)}">
+                  ${isLast ? "Finish" : `Next: ${journeyStages[stageIndex + 1].stage}`} ${isLast ? icon("check", 14) : icon("chevronRight", 14)}
+                </a>
+              </div>
+
+              ${renderActivityLedger(session.log, journey.id)}
+            </div>
+          </div>`;
+      }
+
+      function paint() {
+        document.getElementById("app").innerHTML = pendingTransition ? renderTransitionBody() : renderJourneyBody();
+      }
+
+      // Fired by sendDeepeningStageEmail() once the Brevo call resolves (or
+      // fails) — that function lives in the shared session.js and doesn't
+      // know which page's own paint/render function to call directly, so it
+      // dispatches this instead.
+      window.addEventListener("sessionLogUpdated", () => paint());
+
+      async function loadStage(forceRefresh = false) {
+        if (getStageData() && !forceRefresh && session.journeyData[dataKey]) {
+          paint();
+          return;
+        }
+        if (stage.actions.length === 0) {
+          setStageData({ loading: false, offers: [], meta: null, error: null, source: null });
+          paint();
+          return;
+        }
+
+        setStageData({ loading: true, offers: [], meta: null, error: null, source: null });
+        paint();
+
+        const isWealthAwareness = journey.id === "wealth-management" && stage.stage === "Awareness";
+        const isScratchWin = journey.id === "scratch-win-gamification";
+        const cdhOverrides = isWealthAwareness
+          ? { containerName: "NextBestAction", subjectId: "CUST101", direction: "Outbound" }
+          : isScratchWin
+          ? { containerName: "NextBestAction", subjectId: "CUST36" }
+          : { containerName: "NextBestAction" };
+
+        if (journey.id === "priority-banking-upgrade") {
+          // Diego: the Container API is called exactly once per session
+          // (ensureDiegoContainerOffers, js/cdh.js — a no-op if already
+          // cached), never again per stage, and never falls back to the
+          // local mock catalog — every stage view filters that same cached
+          // response through the existing title-based journey mapping
+          // (filterOffersForStage). If the one-time response never included
+          // a given stage's titles, that stage will legitimately show no
+          // personalized offers for the rest of this journey — see
+          // DEVELOPER_HANDOVER.md §52.
+          await ensureDiegoContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.diegoContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.diegoContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "loan-card-crosssell") {
+          // Robert: same one-time-container pattern as Diego above, "for
+          // now" (explicit, scoped request) — ensureRobertContainerOffers
+          // (js/cdh.js) calls the real Container API exactly once, at
+          // login, shared with dashboard.html via the same session object.
+          // If the one-time response never included a given stage's
+          // titles, that stage will legitimately show no personalized
+          // offers for the rest of this session — same caveat already
+          // accepted for Diego (§52).
+          await ensureRobertContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.robertContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.robertContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "wealth-management") {
+          // Aria: same one-time-container pattern as Diego/Robert above,
+          // "for now" (explicit, scoped request) — ensureAriaContainerOffers
+          // (js/cdh.js) calls the real Container API exactly once, at
+          // login, shared with dashboard.html via the same session object.
+          // If the one-time response never included a given stage's
+          // titles, that stage will legitimately show no personalized
+          // offers for the rest of this session — same caveat already
+          // accepted for Diego (§52) and Robert (§88).
+          await ensureAriaContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.ariaContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.ariaContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "digital-activation-onboarding") {
+          // Maya: same one-time-container pattern as Diego/Robert/Aria
+          // above — ensureMayaContainerOffers (js/cdh.js) calls the real
+          // Container API exactly once, at login, shared with dashboard.html
+          // via the same session object. If the one-time response never
+          // included a given stage's titles, that stage will legitimately
+          // show no personalized offers for the rest of this session — same
+          // caveat already accepted for Diego (§52), Robert (§88), and Aria
+          // (§92).
+          await ensureMayaContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.mayaContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.mayaContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "sme-cards-payments") {
+          // Farah: same one-time-container pattern as Diego/Robert/Aria/Maya
+          // above — ensureFarahContainerOffers (js/cdh.js) calls the real
+          // Container API exactly once, at login, shared with dashboard.html
+          // via the same session object. Originally always-mock (§103)
+          // since these actions weren't configured in Pega yet; switched to
+          // live-first once they were (§125), then to this one-call-per-
+          // session pattern as a follow-up.
+          await ensureFarahContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.farahContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.farahContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "sme-loyalty-protection") {
+          // Carlos: same one-time-container pattern as Farah above.
+          await ensureCarlosContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.carlosContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.carlosContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "sme-lending-working-capital") {
+          // Elena: same one-time-container pattern as Farah above.
+          await ensureElenaContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.elenaContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.elenaContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "sme-digital-banking-cashflow") {
+          // Daniela: same one-time-container pattern as Farah above.
+          await ensureDanielaContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.danielaContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.danielaContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "new-customer-acquisition") {
+          // Sam: same one-time-container pattern as Farah above — added
+          // after his §131 stage-scoped rollout hit the same live-backend
+          // throttling already seen for Elena when calling fresh per stage.
+          await ensureSamContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.samContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.samContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "in-market-card-intent") {
+          // Leo: same one-time-container pattern as Farah/Sam above.
+          await ensureLeoContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.leoContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.leoContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "in-market-loan-intent") {
+          // Naomi: same one-time-container pattern as Farah/Sam/Leo above.
+          await ensureNaomiContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.naomiContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.naomiContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "transaction-digital-deepening") {
+          // Maria: same one-time-container pattern as Maya/Naomi above.
+          await ensureMariaContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.mariaContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.mariaContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else if (journey.id === "ofw-family") {
+          // Angelica: same one-time-container pattern as Maya/Naomi above.
+          await ensureAngelicaContainerOffers(session, customer);
+          const matched = filterOffersForStage(session.angelicaContainerOffers, stage);
+          const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+          setStageData({ loading: false, offers: visibleMatched, meta: session.angelicaContainerMeta, error: null, source: "live" });
+          matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}`, journey.id, o.id));
+        } else {
+          try {
+            const result = await simulateCDHRequest(customer, cdhOverrides);
+            const matched = filterOffersForStage(result.offers, stage);
+            // Same "hide already-responded offers" behavior as dashboard.html's
+            // stage-scoped panel — a stage can have more than one offer, and
+            // once one's been handled it shouldn't keep showing here while the
+            // customer works through the rest of the stage. Checked by title
+            // via journeyActionResponses, not the id-keyed responses map — see
+            // maybeAdvanceJourneyStage's comment (§23) for why. Logging still
+            // uses the unfiltered `matched` list.
+            const visibleMatched = matched.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            if (matched.length > 0) {
+              setStageData({ loading: false, offers: visibleMatched, meta: result.meta, error: null, source: "live" });
+              const subjectId = isWealthAwareness ? "CUST101" : isScratchWin ? "CUST36" : customer.id;
+              const subjectName = getCustomerNameById(subjectId);
+              const subjectNote = subjectName ? ` (Subject: ${subjectName})` : "";
+              matched.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title}${subjectNote}`, journey.id, o.id));
+            } else {
+              setStageData({ loading: false, offers: visibleMatched, meta: result.meta, error: null, source: "live" });
+              pushSessionLog(session, "system", `[${stage.stage}] CDH responded, but none of the returned actions matched this stage.`, journey.id);
+            }
+          } catch (err) {
+            pushSessionLog(session, "system", `[${stage.stage}] CDH call failed (${err.message}) — using local mock strategy`, journey.id);
+            const scored = filterOffersForStage(scoreOffers(OFFER_CATALOG, customer), stage);
+            const visibleScored = scored.filter(o => session.journeyActionResponses[normalizeActionTitle(o.title)] === undefined);
+            const fallbackSubjectId = isWealthAwareness ? "CUST101" : isScratchWin ? "CUST36" : customer.id;
+            const fallbackDirection = isWealthAwareness ? "Outbound" : "Inbound";
+            setStageData({ loading: false, offers: visibleScored, meta: { fallback: true, channel: "Web", subjectId: fallbackSubjectId, direction: fallbackDirection }, error: err.message, source: "mock" });
+            scored.forEach(o => pushSessionLog(session, "impression", `[${stage.stage}] Impression logged Pega CDH RTC — ${o.title} (mock)`, journey.id, o.id));
+          }
+        }
+        if (journey.id === "loan-card-crosssell") {
+          applyOfferedRateToOffers(getStageData().offers, session);
+        }
+        if (journey.id === "priority-banking-upgrade") {
+          setStageData({ ...getStageData(), offers: applyPriorityBankingCampaignAdjustments(getStageData().offers, session, stage) });
+        }
+        saveSession(session);
+        paint();
+        if (journey.id === "loan-card-crosssell") {
+          augmentLoanAmountTiles(getStageData().offers, paint, session.lastLoanTerms);
+        }
+      }
+
+      window.handleRefreshStage = function () {
+        delete session.journeyData[dataKey];
+        saveSession(session);
+        loadStage(true);
+      };
+      window.handleToggleExpand = function (offerId) {
+        window.__expandedId = window.__expandedId === offerId ? null : offerId;
+        paint();
+      };
+      window.handleRespond = async function (offerId, status) {
+        const data = getStageData();
+        const offer = (data.offers || []).find(o => o.id === offerId);
+        if (!offer) return;
+        await respondToOffer(session, offer, status, { journeyId: journey.id, meta: data.meta });
+        // Remove the just-responded offer from this stage's visible list
+        // immediately, same "hide once handled" behavior applied on a fresh
+        // fetch in loadStage() above — this stage may have another offer
+        // still pending, so don't wait for a reload to stop showing this one.
+        setStageData({ ...data, offers: (data.offers || []).filter(o => o.id !== offerId) });
+        paint();
+      };
+      window.handleApplyLoanCalculator = async function (offerId) {
+        const data = getStageData();
+        const offer = (data.offers || []).find(o => o.id === offerId);
+        if (!offer) return;
+        await respondToOffer(session, offer, "accepted", { journeyId: journey.id, meta: data.meta });
+        resetApplication(session);
+        window.location.href = "new-application.html?stage=0";
+      };
+      window.handleApplySip = function (offerId) {
+        const data = getStageData();
+        const offer = (data.offers || []).find(o => o.id === offerId);
+        if (!offer) return;
+        // Deliberately NOT calling respondToOffer here — see dashboard.html's
+        // handleApplySip for why: it would advance Aria's stage the moment
+        // she clicks Apply Now, even if she abandons the wizard right after.
+        // sip-application.html records the real response once she genuinely
+        // finishes or abandons.
+        session.pendingSipOffer = { offer, journeyId: journey.id, meta: data.meta };
+        resetSipApplication(session);
+        window.location.href = "sip-application.html?stage=0";
+      };
+      window.handleApplyInvestmentAccount = function (offerId) {
+        const data = getStageData();
+        const offer = (data.offers || []).find(o => o.id === offerId);
+        if (!offer) return;
+        // Same deferred-response reasoning as handleApplySip above, for
+        // Diego's "Open a New Investment Account" offer.
+        session.pendingInvestmentOffer = { offer, journeyId: journey.id, meta: data.meta };
+        resetInvestmentApplication(session);
+        window.location.href = "investment-application.html?stage=0";
+      };
+
+      paint();
+      if (!pendingTransition) loadStage(false);
+    }
+  }
+</script>
+</body>
+</html>

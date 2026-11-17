@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instellars — EMI Calculator</title>
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+<div id="app" class="bnk-root"></div>
+
+<script src="js/data.js"></script>
+<script src="js/cdh.js"></script>
+<script src="js/session.js"></script>
+<script src="js/behavioral.js"></script>
+<script src="js/render-shared.js"></script>
+<script>
+  const customer = requireLoggedInCustomer();
+
+  if (customer) {
+    // Terms pre-filled from Pre-Approved Loan Offer's own stated amount
+    // ($12,000 per its description); tenure isn't a field that offer
+    // actually has, so a reasonable, typical personal-loan figure is used
+    // as the starting point. Rate uses the real OfferedRate if the
+    // dashboard/journey already fetched one this session (persisted to
+    // session.lastOfferedRate by applyOfferedRateToOffers, js/cdh.js) —
+    // otherwise the same reasonable default as before. All three remain
+    // fully editable.
+    const session = loadSession();
+    const emiState = { loanAmount: 12000, interestRate: session.lastOfferedRate ?? 10.5, tenureMonths: 36 };
+
+    function calculateEmi(principal, annualRatePercent, tenureMonths) {
+      if (!principal || !tenureMonths) return 0;
+      const monthlyRate = annualRatePercent / 12 / 100;
+      if (monthlyRate === 0) return principal / tenureMonths;
+      const factor = Math.pow(1 + monthlyRate, tenureMonths);
+      return (principal * monthlyRate * factor) / (factor - 1);
+    }
+
+    function renderEmiResult() {
+      const { loanAmount, interestRate, tenureMonths } = emiState;
+      const emi = calculateEmi(loanAmount, interestRate, tenureMonths);
+      const totalPayment = emi * tenureMonths;
+      const totalInterest = totalPayment - loanAmount;
+      return `
+        <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.2rem;">Estimated Monthly Payment</div>
+        <div class="bnk-display" style="font-size:2rem;color:var(--brass);">$${emi.toFixed(2)}/mo</div>
+        <div style="display:flex; gap:1.5rem; margin-top:0.8rem; font-size:0.8rem; color:var(--ink-soft); flex-wrap:wrap;">
+          <div>Total Interest: <strong style="color:var(--ink);">$${totalInterest.toFixed(2)}</strong></div>
+          <div>Total Payment: <strong style="color:var(--ink);">$${totalPayment.toFixed(2)}</strong></div>
+        </div>`;
+    }
+
+    function renderBody() {
+      const { loanAmount, interestRate, tenureMonths } = emiState;
+
+      return `
+        <div>
+          <div class="bnk-header">
+            <div class="bnk-brand" style="margin-bottom:0;">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+            <div class="bnk-header-right">
+              <span style="font-size:0.85rem;">EMI Calculator · ${customer.name}</span>
+              <a class="bnk-signout-btn" style="text-decoration:none;" href="dashboard.html">${icon("x", 14)}<span> Exit to dashboard</span></a>
+            </div>
+          </div>
+          <div class="bnk-body">
+            <div class="bnk-application-panel" style="max-width:480px;margin:0 auto;">
+              <div class="bnk-display" style="font-size:1.4rem;margin-bottom:0.3rem;">EMI Calculator</div>
+              <div style="font-size:0.85rem;color:var(--ink-soft);margin-bottom:1.2rem;">Pre-filled from your Pre-Approved Loan Offer — adjust any field to see how your monthly payment changes.</div>
+
+              <div class="bnk-form-group">
+                <label class="bnk-form-label">Loan Amount ($)</label>
+                <input class="bnk-form-input" type="number" min="0" value="${loanAmount}" oninput="updateEmiField('loanAmount', this.value)" />
+              </div>
+              <div class="bnk-form-group">
+                <label class="bnk-form-label">Rate of Interest (% p.a.)</label>
+                <input id="emiInterestRateInput" class="bnk-form-input" type="number" min="0" step="0.1" value="${interestRate}" oninput="updateEmiField('interestRate', this.value)" />
+              </div>
+              <div class="bnk-form-group">
+                <label class="bnk-form-label">Loan Tenure (months)</label>
+                <input class="bnk-form-input" type="number" min="1" value="${tenureMonths}" oninput="updateEmiField('tenureMonths', this.value)" />
+              </div>
+
+              <div id="emiResultBox" style="background:var(--brass-soft); border-radius:8px; padding:1.1rem; margin:1.2rem 0 1.4rem;">${renderEmiResult()}</div>
+
+              <a class="bnk-btn-primary" style="width:100%;text-decoration:none;text-align:center;display:block;box-sizing:border-box;" href="dashboard.html" onclick="persistLoanTermsAndExit()">Save</a>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function paint() {
+      document.getElementById("app").innerHTML = renderBody();
+    }
+
+    window.updateEmiField = function (field, value) {
+      const num = parseFloat(value);
+      emiState[field] = isNaN(num) ? 0 : num;
+      // Only the result box updates in place — re-rendering the whole form
+      // on every keystroke (via paint()) would destroy and recreate the
+      // input elements, losing focus and cursor position mid-type.
+      document.getElementById("emiResultBox").innerHTML = renderEmiResult();
+    };
+
+    // Kept in the session so the New Application wizard's Additional Info
+    // step can carry these over, if she later applies via Personal Loan
+    // Offer's Apply Now — a separate flow that doesn't otherwise touch
+    // this page at all.
+    window.persistLoanTermsAndExit = function () {
+      const session = loadSession();
+      session.lastLoanTerms = { ...emiState };
+      saveSession(session);
+    };
+
+    paint();
+  }
+</script>
+</body>
+</html>

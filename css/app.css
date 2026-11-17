@@ -1,0 +1,523 @@
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root {
+    --ink: #0E1230;
+    --ink-soft: #4E4F6E;
+    --paper: #EDEDF2;
+    --paper-alt: #E1E1EA;
+    --white: #FFFFFF;
+    --brass: #2563EB;
+    --brass-soft: #DBEAFE;
+    --rule: #CBCBDA;
+    --danger: #8C3B34;
+    --success: #3B6E52;
+    --star: #8F7FE8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  body.bnk-journey-active { scrollbar-width: none; -ms-overflow-style: none; }
+  body.bnk-journey-active::-webkit-scrollbar { width: 0; height: 0; }
+  .bnk-root {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+  }
+  .bnk-display { font-family: 'Fraunces', serif; }
+  .bnk-mono { font-family: 'IBM Plex Mono', monospace; }
+  .bnk-icon-svg { display: inline-block; vertical-align: middle; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+
+  /* ---------- Login ---------- */
+  .bnk-login-wrap { display: flex; min-height: 100vh; }
+  .bnk-login-left {
+    background: var(--ink); color: var(--paper);
+    flex: 1; display: flex; flex-direction: column; justify-content: center;
+    padding: 4rem; position: relative; overflow: hidden;
+  }
+  .bnk-login-left::after {
+    content: ""; position: absolute; right: -60px; bottom: -60px;
+    width: 260px; height: 260px; border: 1px solid rgba(237,239,242,0.12); border-radius: 50%;
+  }
+  .bnk-constellation { position: absolute; inset: 0; pointer-events: none; }
+  .bnk-constellation circle { fill: var(--star); opacity: 0.55; }
+  .bnk-constellation line { stroke: var(--star); stroke-width: 1; opacity: 0.22; }
+  .bnk-brand { display: flex; align-items: center; gap: 0.6rem; color: var(--brass-soft); margin-bottom: 2.5rem; }
+  .bnk-brand-word { font-family: 'Fraunces', serif; font-size: 1.15rem; letter-spacing: 0.02em; }
+  .bnk-login-headline { font-size: 2.6rem; line-height: 1.15; max-width: 480px; margin: 0; }
+  .bnk-login-sub { color: rgba(237,239,234,0.65); margin-top: 1.25rem; max-width: 420px; line-height: 1.6; font-size: 0.95rem; }
+  .bnk-login-illustration { position: absolute; right: -30px; bottom: -20px; width: 340px; max-width: 42%; pointer-events: none; }
+  .bnk-login-illustration svg { width: 100%; height: auto; display: block; }
+  .bnk-login-right {
+    flex: 1; padding: 4rem; display: flex; flex-direction: column; justify-content: center;
+    max-width: 560px;
+  }
+  .bnk-login-right-title { font-size: 1.4rem; margin-bottom: 0.35rem; }
+  .bnk-login-right-sub { color: var(--ink-soft); font-size: 0.9rem; margin-bottom: 2rem; }
+  .bnk-customer-card {
+    display: flex; align-items: center; gap: 0.9rem; width: 100%;
+    background: var(--white); border: 1px solid var(--rule); padding: 0.9rem 1.1rem;
+    margin-bottom: 0.75rem; cursor: pointer; text-align: left; border-radius: 6px;
+    box-shadow: 0 1px 4px -1px rgba(14,18,48,0.1);
+    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease; font-family: inherit; color: inherit;
+  }
+  .bnk-customer-card:hover { border-color: var(--brass); transform: translateY(-1px); box-shadow: 0 8px 18px -10px rgba(14,18,48,0.22); }
+  .bnk-customer-card:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+  .bnk-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(145deg, #1c2560, var(--ink)); color: var(--brass-soft);
+    display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600;
+    flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(237,239,242,0.12);
+  }
+  .bnk-customer-name { font-weight: 600; font-size: 0.95rem; }
+  .bnk-customer-meta { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.25rem; flex-wrap: wrap; }
+  .bnk-customer-meta-num { color: var(--ink-soft); font-size: 0.72rem; }
+  .bnk-segment-pill {
+    background: var(--brass-soft); color: #1E40AF; font-size: 0.68rem; padding: 0.1rem 0.5rem;
+    border-radius: 20px; font-weight: 600; letter-spacing: 0.02em;
+  }
+
+  /* ---------- Dashboard ---------- */
+  .bnk-header {
+    background: var(--ink); color: var(--paper); position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; padding: 0.85rem 1.8rem;
+    flex-wrap: wrap; gap: 0.6rem;
+  }
+  .bnk-header-right { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .bnk-signout-btn {
+    display: flex; align-items: center; gap: 0.4rem; background: transparent; border: 1px solid rgba(237,239,234,0.25);
+    color: var(--paper); padding: 0.4rem 0.8rem; border-radius: 4px; font-size: 0.8rem; cursor: pointer; font-family: inherit;
+  }
+  .bnk-signout-btn:hover { border-color: var(--brass-soft); }
+  .bnk-body { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+
+  .bnk-nav-tabs { display: flex; align-items: stretch; padding: 0 2rem; background: var(--ink); min-width: 0; }
+  .bnk-nav-tabs-scroll { display: flex; gap: 0.3rem; min-width: 0; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; -ms-overflow-style: none; }
+  .bnk-nav-tabs-scroll::-webkit-scrollbar { display: none; }
+  .bnk-nav-tab { background: none; border: none; color: rgba(237,239,242,0.6); font-family: inherit; font-size: 0.8rem; padding: 0.6rem 0.85rem; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+  .bnk-nav-tab.active { color: var(--paper); border-bottom-color: var(--star); font-weight: 600; }
+  .bnk-nav-tab:hover:not(.active) { color: var(--paper); }
+
+  .bnk-nav-dropdown { position: relative; flex-shrink: 0; }
+  .bnk-nav-dropdown-trigger { display: flex; align-items: center; gap: 0.3rem; }
+  .bnk-nav-dropdown-trigger svg { transition: transform 0.15s; }
+  .bnk-nav-dropdown.open .bnk-nav-dropdown-trigger { color: var(--paper); }
+  .bnk-nav-dropdown.open .bnk-nav-dropdown-trigger svg { transform: rotate(180deg); }
+  .bnk-nav-dropdown-panel {
+    position: absolute; top: 100%; left: 0; margin-top: 0.4rem; background: var(--white);
+    border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 12px 28px rgba(14,18,48,0.18);
+    min-width: 210px; padding: 0.4rem; z-index: 30; display: none;
+  }
+  .bnk-nav-dropdown.open .bnk-nav-dropdown-panel { display: block; }
+  .bnk-nav-dropdown-item {
+    display: flex; align-items: center; gap: 0.6rem; width: 100%; text-align: left; background: none; border: none;
+    cursor: pointer; font-family: inherit; color: var(--ink); font-size: 0.82rem; font-weight: 500;
+    padding: 0.5rem 0.55rem; border-radius: 6px; text-decoration: none;
+  }
+  .bnk-nav-dropdown-item:hover { background: var(--paper); }
+  .bnk-nav-dropdown-item-icon { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--brass-soft); color: #1E40AF; display: flex; align-items: center; justify-content: center; }
+
+  .bnk-greeting { font-size: 1.2rem; margin-bottom: 1.3rem; }
+  .bnk-greeting .bnk-name-accent { color: var(--brass); }
+
+  .bnk-dashboard-grid { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1.5rem; align-items: start; margin-bottom: 2rem; }
+  .bnk-main-col { display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+  .bnk-side-col { display: flex; flex-direction: column; gap: 1.25rem; }
+
+  /* Diego's Priority Banking Upgrade dashboard only: the ORIGINAL hero card
+     (full width, same as every other customer's) sits at the top, just
+     shortened in height — see bnk-hero-account--compact below, which now
+     only tightens vertical padding/spacing, not width. Below it, one
+     full-width row holds all four panels side by side, always: Pending
+     Missions, Pending Milestones, Progress Monitor, Personalized Offers
+     last. repeat(auto-fit, ...) so the row still adapts to narrower
+     viewports without needing separate breakpoint rules. */
+  .bnk-hero-account--compact { padding: 0.35rem 0.7rem 0.3rem; }
+  .bnk-hero-account--compact .bnk-hero-chip { margin-bottom: 0.15rem; }
+  .bnk-hero-account--compact .bnk-hero-top-row { margin-bottom: 0.15rem; }
+  .bnk-hero-account--compact .bnk-hero-label { margin-bottom: 0; }
+  .bnk-hero-account--compact .bnk-hero-masked { margin-bottom: 0.12rem; }
+  .bnk-hero-account--compact .bnk-hero-balance-label { margin-bottom: 0.05rem; }
+  .bnk-hero-account--compact .bnk-hero-balance-row { margin-bottom: 0.2rem; }
+  .bnk-hero-account--compact .bnk-hero-actions { gap: 0.2rem; }
+  .bnk-hero-account--compact .bnk-hero-action-icon { width: 20px; height: 20px; }
+  .bnk-hero-account--compact .bnk-hero-action-label { font-size: 0.5rem; }
+  /* Checking/Time Deposit rows dropped entirely (not just tightened) — the
+     single biggest remaining chunk of the compact hero's height, and
+     redundant with the same two accounts already visible under
+     Accounts/Transfers, so nothing is actually lost by cutting them here. */
+  .bnk-hero-account--compact .bnk-hero-subaccounts { display: none; }
+  /* Two items side by side: the three status panels (grouped in their own
+     inner grid so they can stretch to match EACH OTHER's height) and
+     Personalized Offers (sized independently — deliberately not stretched
+     to match, since its content varies far more, from zero offers to
+     several real cards). */
+  .bnk-diego-panel-row { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .bnk-diego-status-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1.25rem; align-items: stretch; flex: 3 1 560px; }
+  .bnk-diego-panel-row > .bnk-sidebar-panel { flex: 1 1 280px; min-width: 0; }
+  /* bnk-sidebar-panel.bnk-status-panel (two classes) so this reliably wins
+     over the shared .bnk-sidebar-panel's white background regardless of
+     source order — a plain .bnk-status-panel rule would tie on specificity
+     and be a coin flip. Flex column + note pushed to the bottom via
+     margin-top: auto (below) is what actually makes the stretched-taller
+     panels look intentional rather than just leaving dead space underneath
+     a short empty-state message. */
+  .bnk-sidebar-panel.bnk-status-panel { background: var(--brass-soft); display: flex; flex-direction: column; }
+  .bnk-status-panel .bnk-sidebar-offers-stack { flex: 1; }
+  .bnk-status-panel .bnk-sidebar-note { margin-top: auto; }
+
+  /* Empty-state illustration for Diego's Personalized Offers and its three
+     status panels (Pending Missions, Pending Milestones, Progress Monitor)
+     — kept entirely separate from the shared bnk-journey-empty class (used
+     for Personalized Offers' own empty state on every OTHER customer, and
+     in journey.html) so nothing about those other, unrelated empty states
+     changes. */
+  .bnk-panel-empty { text-align: center; padding: 1.4rem 0.8rem 0.6rem; }
+  /* Brass-soft by default — right for Personalized Offers' white panel
+     background. bnk-status-panel's own background is brass-soft too, so
+     its icon needs the opposite (white) to stay visible — see the override
+     just below. */
+  .bnk-panel-empty-icon { width: 46px; height: 46px; border-radius: 50%; background: var(--brass-soft); color: #1E40AF; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.7rem; }
+  .bnk-status-panel .bnk-panel-empty-icon { background: var(--white); }
+  .bnk-panel-empty-text { font-size: 0.76rem; color: var(--ink-soft); font-style: italic; line-height: 1.4; }
+
+  .bnk-hero-account {
+    position: relative; overflow: hidden; isolation: isolate;
+    background:
+      radial-gradient(circle at 88% -15%, rgba(143,127,232,0.4), transparent 55%),
+      radial-gradient(circle at -5% 115%, rgba(37,99,235,0.3), transparent 50%),
+      linear-gradient(135deg, var(--ink), #1c2560);
+    color: var(--paper); border-radius: 12px; padding: 0.65rem 0.8rem 0.6rem;
+    box-shadow: 0 8px 18px -12px rgba(14,18,48,0.6);
+  }
+  .bnk-hero-top-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.4rem; flex-wrap: wrap; gap: 0.3rem; padding-right: 1.3rem; }
+  .bnk-hero-type { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(237,239,242,0.65); }
+  .bnk-hero-active-pill { background: rgba(143,127,232,0.25); color: var(--star); font-size: 0.54rem; padding: 0.1rem 0.42rem; border-radius: 20px; font-weight: 600; flex-shrink: 0; white-space: nowrap; }
+  .bnk-hero-chip {
+    width: 22px; height: 16px; border-radius: 3px; margin-bottom: 0.35rem;
+    background: linear-gradient(145deg, #F3D896, #C99A3D);
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18);
+    position: relative;
+  }
+  .bnk-hero-chip::before {
+    content: ""; position: absolute; inset: 2.5px 3px;
+    background:
+      linear-gradient(rgba(122,74,14,0.45) 1px, transparent 1px) 0 1.5px / 100% 5px,
+      linear-gradient(90deg, rgba(122,74,14,0.45) 1px, transparent 1px) 3px 0 / 5px 100%;
+  }
+  .bnk-hero-contactless { position: absolute; top: 0.65rem; right: 0.8rem; color: rgba(237,239,242,0.55); transform: rotate(90deg); }
+  .bnk-hero-label { font-size: 0.78rem; font-weight: 600; margin-bottom: 0.05rem; }
+  .bnk-hero-masked { font-size: 0.64rem; letter-spacing: 0.03em; color: rgba(237,239,242,0.6); margin-bottom: 0.35rem; font-family: "SFMono-Regular", Consolas, monospace; }
+  .bnk-hero-balance-label { font-size: 0.58rem; color: rgba(237,239,242,0.6); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.12rem; }
+  .bnk-hero-balance-row { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.45rem; }
+  .bnk-hero-balance-value { font-size: 1.05rem; font-weight: 700; letter-spacing: 0.01em; }
+  .bnk-hero-balance-toggle { background: rgba(237,239,242,0.1); border: 1px solid rgba(237,239,242,0.18); color: rgba(237,239,242,0.75); width: 19px; height: 19px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+  .bnk-hero-balance-toggle:hover { background: rgba(237,239,242,0.18); color: var(--paper); }
+  .bnk-hero-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; position: relative; }
+  .bnk-hero-action-btn { display: flex; flex-direction: column; align-items: center; gap: 0.22rem; background: none; border: none; color: var(--paper); padding: 0; cursor: pointer; font-family: inherit; flex: 1; min-width: 56px; }
+  .bnk-hero-action-icon { width: 26px; height: 26px; border-radius: 50%; background: rgba(237,239,242,0.12); border: 1px solid rgba(237,239,242,0.16); display: flex; align-items: center; justify-content: center; transition: background 0.15s, transform 0.15s; }
+  .bnk-hero-action-btn:hover .bnk-hero-action-icon { background: rgba(237,239,242,0.22); transform: translateY(-1px); }
+  .bnk-hero-action-label { font-size: 0.58rem; }
+  .bnk-hero-subaccounts { margin-top: 0.5rem; padding-top: 0.45rem; border-top: 1px solid rgba(237,239,242,0.16); display: flex; flex-direction: column; gap: 0.35rem; }
+  .bnk-hero-subaccount-row { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+  .bnk-hero-subaccount-label { font-size: 0.7rem; font-weight: 600; }
+  .bnk-hero-subaccount-masked { font-size: 0.6rem; color: rgba(237,239,242,0.55); margin-top: 0.05rem; }
+  .bnk-hero-subaccount-value { font-size: 0.76rem; font-weight: 700; text-align: right; flex-shrink: 0; }
+  .bnk-hero-subaccount-maturity { font-size: 0.62rem; font-weight: 500; color: rgba(237,239,242,0.75); font-family: inherit; }
+
+  .bnk-application-card { background: var(--white); border: 1px dashed var(--brass); border-radius: 8px; padding: 1.1rem 1.3rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .bnk-application-card-icon { width: 40px; height: 40px; border-radius: 50%; background: var(--brass-soft); color: #1E40AF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .bnk-application-card-title { font-weight: 600; font-size: 0.98rem; margin-bottom: 0.15rem; }
+  .bnk-application-card-sub { font-size: 0.82rem; color: var(--ink-soft); }
+
+  .bnk-form-group { margin-bottom: 1.1rem; }
+  .bnk-form-label { display: block; font-size: 0.78rem; font-weight: 600; color: var(--ink-soft); margin-bottom: 0.35rem; }
+  .bnk-form-input, .bnk-form-select { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid var(--rule); border-radius: 4px; font-family: inherit; font-size: 0.88rem; color: var(--ink); background: var(--white); }
+  .bnk-form-input:focus, .bnk-form-select:focus { outline: none; border-color: var(--brass); }
+  .bnk-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .bnk-application-panel { background: var(--white); border: 1px solid var(--rule); border-radius: 8px; padding: 1.5rem; max-width: 560px; margin: 0 auto; }
+
+  .bnk-transition-step { display: flex; gap: 0.85rem; }
+  .bnk-transition-iconcol { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .bnk-transition-icon { width: 34px; height: 34px; border-radius: 50%; background: var(--brass-soft); color: #1E40AF; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .bnk-transition-line { width: 2px; flex: 1; background: var(--rule); margin: 0.3rem 0; min-height: 0.6rem; }
+  .bnk-transition-body { padding-bottom: 1.1rem; }
+  .bnk-transition-label { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.25rem; }
+  .bnk-transition-detail { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.5; }
+  .bnk-application-actions { display: flex; justify-content: space-between; gap: 0.75rem; margin-top: 1.5rem; }
+
+  .bnk-confirmation-wrap { text-align: center; padding: 1rem 0 0.5rem; }
+  .bnk-confirmation-icon { width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.2rem; }
+  .bnk-confirmation-icon.success { background: #E4EEE7; color: var(--success); }
+  .bnk-confirmation-icon.muted { background: var(--paper-alt); color: var(--ink-soft); }
+  .bnk-confirmation-title { font-size: 1.3rem; margin-bottom: 0.5rem; }
+  .bnk-confirmation-sub { color: var(--ink-soft); font-size: 0.9rem; margin-bottom: 1.5rem; }
+
+  .bnk-txn-section { background: var(--white); border: 1px solid var(--rule); border-radius: 8px; padding: 1.05rem 1.15rem; }
+  .bnk-txn-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.7rem; flex-wrap: wrap; gap: 0.4rem; }
+  .bnk-txn-header-title { font-weight: 600; font-size: 0.93rem; }
+  .bnk-txn-view-all { font-size: 0.78rem; color: var(--brass); text-decoration: none; cursor: pointer; background: none; border: none; font-family: inherit; display: flex; align-items: center; gap: 0.2rem; }
+  .bnk-txn-row { display: flex; align-items: center; gap: 0.7rem; padding: 0.6rem 0; border-top: 1px solid var(--paper-alt); }
+  .bnk-txn-row:first-of-type { border-top: none; }
+  .bnk-txn-icon { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .bnk-txn-icon.debit { background: #F7E3DE; color: var(--danger); }
+  .bnk-txn-icon.credit { background: #E1F0E5; color: var(--success); }
+  .bnk-txn-icon.muted { background: #ECECEC; color: var(--ink-soft); }
+  .bnk-txn-icon.warn { background: #F7E3DE; color: var(--danger); }
+  .bnk-txn-icon.info { background: var(--brass-soft); color: #1E40AF; }
+  .bnk-txn-amount-neutral { color: var(--ink-soft); font-weight: 500; }
+  .bnk-txn-name { font-weight: 600; font-size: 0.84rem; }
+  .bnk-txn-meta { font-size: 0.71rem; color: var(--ink-soft); }
+  .bnk-txn-amount { margin-left: auto; font-weight: 600; font-size: 0.85rem; }
+  .bnk-txn-amount.debit { color: var(--danger); }
+  .bnk-txn-amount.credit { color: var(--success); }
+
+  .bnk-sidebar-panel { background: var(--white); border: 1px solid var(--rule); border-radius: 8px; padding: 1.05rem 1.15rem; }
+
+  .bnk-sidebar-panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.85rem; flex-wrap: wrap; gap: 0.4rem; }
+  .bnk-sidebar-panel-title { font-weight: 600; font-size: 0.92rem; display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+  .bnk-engine-badge { background: var(--brass-soft); color: #1E40AF; font-size: 0.62rem; font-weight: 600; padding: 0.2rem 0.55rem; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+  .bnk-sidebar-offers-stack { display: flex; flex-direction: column; gap: 1rem; }
+  .bnk-sidebar-note { font-size: 0.72rem; color: var(--ink-soft); text-align: center; margin-top: 0.9rem; font-style: italic; }
+
+
+  .bnk-stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 2.5rem; }
+  .bnk-tile { background: var(--white); border: 1px solid var(--rule); padding: 1.1rem 1.3rem; border-radius: 4px; }
+  .bnk-tile-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft); margin-bottom: 0.4rem; }
+  .bnk-tile-value { font-size: 1.5rem; font-weight: 600; }
+  .bnk-tile-sub { font-size: 0.75rem; color: var(--ink-soft); margin-top: 0.2rem; }
+
+  .bnk-section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; }
+  .bnk-section-title { font-size: 1.5rem; margin: 0; }
+  .bnk-section-sub { color: var(--ink-soft); font-size: 0.85rem; margin-top: 0.15rem; }
+  .bnk-section-controls { display: flex; align-items: center; gap: 0.6rem; }
+  .bnk-live-badge {
+    display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; padding: 0.3rem 0.6rem;
+    border-radius: 20px; border: 1px solid var(--rule); background: var(--white);
+  }
+  .bnk-live-badge.live { color: var(--success); }
+  .bnk-live-badge.down { color: var(--danger); }
+  .bnk-live-badge.checking { color: var(--ink-soft); }
+  .bnk-icon-btn {
+    display: flex; align-items: center; gap: 0.3rem; background: var(--white); border: 1px solid var(--rule);
+    padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.74rem; cursor: pointer; color: var(--ink); font-family: inherit;
+  }
+  .bnk-icon-btn:hover { border-color: var(--brass); }
+  .bnk-icon-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  .bnk-info-callout {
+    display: flex; gap: 0.7rem; background: var(--white); border: 1px dashed var(--rule);
+    padding: 0.9rem 1.1rem; border-radius: 4px; margin-bottom: 1.5rem; font-size: 0.82rem; color: var(--ink-soft);
+    align-items: flex-start;
+  }
+  .bnk-info-callout button { margin-left: auto; background: none; border: none; cursor: pointer; color: var(--ink-soft); flex-shrink: 0; padding: 0; }
+
+  .bnk-offers-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.85rem; margin-bottom: 2.5rem; }
+  .bnk-offers-grid-journey { grid-template-columns: repeat(auto-fit, minmax(260px, 320px)); justify-content: center; }
+  .bnk-card {
+    background: var(--white); border: 1px solid var(--rule); border-radius: 6px; padding: 0.6rem;
+    display: flex; flex-direction: column;
+    box-shadow: 0 1px 4px -1px rgba(14,18,48,0.14);
+    transition: box-shadow 0.18s ease, transform 0.18s ease;
+  }
+  .bnk-card:hover { box-shadow: 0 5px 14px -6px rgba(14,18,48,0.28); transform: translateY(-2px); }
+  .bnk-card-compact { padding: 0.4rem; border-radius: 4px; }
+  .bnk-card-compact:hover { transform: none; box-shadow: 0 1px 4px -1px rgba(14,18,48,0.14); }
+  .bnk-card-compact .bnk-card-image { display: block; width: calc(100% + 0.8rem); height: 68px; margin: -0.4rem -0.4rem 0.35rem; border-radius: 4px 4px 0 0; object-position: top; }
+  .bnk-card-compact .bnk-eyebrow-row { display: none; }
+  .bnk-card-compact .bnk-icon-badge { width: 16px; height: 16px; }
+  .bnk-card-compact .bnk-card-title { font-size: 0.74rem; line-height: 1.1; }
+  .bnk-card-compact .bnk-card-desc { font-size: 0.64rem; margin: 0.22rem 0 0.3rem; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  .bnk-card-compact .bnk-card-actions { margin-bottom: 0; gap: 0.25rem; }
+  .bnk-card-compact .bnk-btn-primary, .bnk-card-compact .bnk-btn-ghost { padding: 0.2rem 0.4rem; font-size: 0.6rem; }
+  .bnk-card-compact .bnk-response-badge { padding: 0.22rem 0.42rem; font-size: 0.62rem; margin-bottom: 0; }
+  .bnk-card-image { width: calc(100% + 1.2rem); aspect-ratio: 500 / 260; object-fit: cover; margin: -0.6rem -0.6rem 0.5rem; display: block; border-radius: 6px 6px 0 0; }
+  .bnk-card-top { display: flex; gap: 0.4rem; margin-bottom: 0.35rem; }
+  .bnk-icon-badge {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: linear-gradient(145deg, var(--brass-soft), #C7DBFB); color: #1E40AF;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(30,64,175,0.12);
+  }
+  .bnk-eyebrow-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.1rem; }
+  .bnk-eyebrow { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--brass); }
+  .bnk-journey-stage-badge { background: var(--brass-soft); color: #1E40AF; font-size: 0.54rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.05rem 0.32rem; border-radius: 6px; font-weight: 600; white-space: nowrap; }
+  .bnk-card-title { font-size: 0.8rem; line-height: 1.2; }
+  .bnk-card-desc { font-size: 0.68rem; color: var(--ink-soft); line-height: 1.38; margin-bottom: 0.5rem; flex: 1; }
+  .bnk-progress-bar { margin: 0 0 0.7rem; }
+  .bnk-progress-track { position: relative; height: 5px; border-radius: 999px; background: var(--paper-alt); margin: 0 6px; }
+  .bnk-progress-fill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 999px; background: var(--brass); transition: width 0.35s ease; }
+  .bnk-progress-dot { position: absolute; top: 50%; width: 11px; height: 11px; border-radius: 50%; background: var(--white); border: 2.5px solid var(--paper-alt); transform: translate(-50%, -50%); transition: border-color 0.35s ease; }
+  .bnk-progress-dot-done { border-color: var(--brass); }
+  .bnk-progress-percent-label { margin-top: 0.5rem; font-size: 0.66rem; font-weight: 600; color: var(--brass); }
+  .bnk-card-actions { display: flex; gap: 0.3rem; margin-bottom: 0.45rem; }
+  .bnk-btn-primary {
+    display: flex; align-items: center; justify-content: center; gap: 0.25rem; background: var(--ink); color: var(--paper);
+    border: none; padding: 0.34rem 0.6rem; border-radius: 4px; font-size: 0.72rem; cursor: pointer; flex: 1; font-weight: 600; font-family: inherit;
+    transition: background 0.15s ease, transform 0.15s ease;
+  }
+  .bnk-btn-primary:hover { background: #1E2450; transform: translateY(-1px); }
+  .bnk-btn-ghost {
+    background: transparent; border: 1px solid var(--rule); color: var(--ink); padding: 0.34rem 0.6rem;
+    border-radius: 4px; font-size: 0.72rem; cursor: pointer; font-family: inherit;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .bnk-btn-ghost:hover { border-color: var(--brass); transform: translateY(-1px); }
+  .bnk-btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+  .bnk-btn-ghost:disabled:hover { border-color: var(--rule); transform: none; }
+  .bnk-response-badge {
+    display: flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; padding: 0.3rem 0.55rem;
+    border-radius: 4px; margin-bottom: 0.5rem; font-weight: 500; width: fit-content;
+  }
+  .bnk-response-accepted { background: #E4EEE7; color: var(--success); }
+  .bnk-response-dismissed { background: #EFEFEA; color: var(--ink-soft); }
+
+  .bnk-receipt-toggle {
+    display: flex; align-items: center; justify-content: space-between; background: none; border: none;
+    border-top: 1px dashed var(--rule); padding-top: 0.7rem; font-size: 0.78rem; color: var(--ink-soft);
+    cursor: pointer; width: 100%; font-family: inherit;
+  }
+  .bnk-receipt { margin-top: 0.5rem; background: var(--paper); border: 1px dashed var(--rule); border-radius: 4px; padding: 0.6rem 0.7rem; }
+  .bnk-receipt-row { display: flex; justify-content: space-between; font-size: 0.76rem; padding: 0.2rem 0; color: var(--ink-soft); gap: 0.5rem; }
+  /* Label stays its natural width; the value column gets the rest of the
+     row and can shrink below its own content width to actually wrap
+     (flex items default to min-width:auto — without this a long value
+     like an Interaction ID or "Open a New Investment Account" overflowed
+     the card instead of wrapping onto a second line). */
+  .bnk-receipt-row > span:first-child { flex-shrink: 0; }
+  .bnk-receipt-row .bnk-mono { color: var(--ink); text-align: right; flex: 1; min-width: 0; overflow-wrap: break-word; word-break: break-word; }
+  .bnk-receipt-divider { border-top: 1px dashed var(--rule); margin: 0.35rem 0; }
+  .bnk-explain-reason { font-size: 0.78rem; font-style: italic; color: var(--ink); line-height: 1.4; margin: 0.2rem 0 0.6rem; }
+  .bnk-explain-section-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-soft); margin: 0.55rem 0 0.3rem; }
+  .bnk-explain-check-row { display: flex; align-items: flex-start; gap: 0.4rem; font-size: 0.75rem; padding: 0.15rem 0; color: var(--ink-soft); }
+  .bnk-explain-check-row svg { flex-shrink: 0; margin-top: 0.12rem; }
+  .bnk-check-pass svg { color: var(--success); }
+  .bnk-check-fail svg { color: var(--danger); }
+  .bnk-check-unknown { color: var(--ink-soft); }
+  .bnk-gov-status-live { color: var(--success); font-weight: 700; }
+  .bnk-gov-status-review { color: #9C6E1E; font-weight: 700; }
+  .bnk-governance-unregistered { font-size: 0.74rem; color: #9C6E1E; background: #FDF3E3; border-radius: 4px; padding: 0.4rem 0.5rem; line-height: 1.4; }
+  .bnk-gov-history { margin-top: 0.4rem; }
+  .bnk-gov-history-row { display: grid; grid-template-columns: 2.2rem 1fr auto; gap: 0.4rem; font-size: 0.7rem; color: var(--ink-soft); padding: 0.15rem 0; }
+  .bnk-gov-history-date { color: var(--ink-soft); opacity: 0.7; white-space: nowrap; }
+  .bnk-fallback-note { font-size: 0.75rem; color: var(--danger); margin-bottom: 0.8rem; }
+
+  .bnk-skeleton { background: var(--white); border: 1px solid var(--rule); border-radius: 6px; padding: 1rem; height: 160px; box-shadow: 0 1px 4px -1px rgba(14,18,48,0.14); }
+  .bnk-skeleton-line { background: var(--paper-alt); border-radius: 3px; animation: bnkPulse 1.4s ease-in-out infinite; }
+  @keyframes bnkPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+  .bnk-journey-section { background: var(--white); border: 1px solid var(--rule); border-radius: 4px; padding: 1.2rem 1.4rem 1.4rem; margin-bottom: 1.5rem; }
+  .bnk-journey-header { margin-bottom: 1rem; }
+  .bnk-journey-title { font-size: 1.15rem; }
+  .bnk-journey-sub { color: var(--ink-soft); font-size: 0.8rem; margin-top: 0.25rem; line-height: 1.5; }
+  .bnk-journey-row { display: flex; align-items: stretch; gap: 0.5rem; flex-wrap: wrap; row-gap: 0.75rem; }
+  .bnk-journey-col { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 0.8rem; min-width: 168px; flex-shrink: 0; }
+  .bnk-journey-stage-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; color: var(--ink); margin-bottom: 0.55rem; }
+  .bnk-journey-chips { display: flex; flex-direction: column; gap: 0.4rem; }
+  .bnk-journey-chip {
+    display: flex; align-items: center; gap: 0.3rem; text-align: left; background: var(--white); border: 1px solid var(--rule);
+    border-radius: 20px; padding: 0.4rem 0.65rem; font-size: 0.72rem; color: var(--ink-soft); cursor: pointer; font-family: inherit;
+    line-height: 1.3;
+  }
+  .bnk-journey-chip:hover { border-color: var(--brass); }
+  .bnk-journey-chip-live { background: var(--brass-soft); border-color: var(--brass); color: #1E40AF; font-weight: 600; }
+  .bnk-journey-chip-empty { font-size: 0.72rem; color: var(--ink-soft); font-style: italic; padding: 0.4rem 0.1rem; }
+  .bnk-journey-arrow { display: flex; align-items: center; justify-content: center; color: var(--rule); flex-shrink: 0; }
+
+  .bnk-stepper-row { display: flex; align-items: center; margin-bottom: 1.5rem; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 0.25rem 0; scrollbar-width: none; -ms-overflow-style: none; }
+  .bnk-stepper-row::-webkit-scrollbar { display: none; }
+  .bnk-stepper-item { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; background: none; border: none; cursor: pointer; font-family: inherit; flex-shrink: 0; padding: 0.25rem 0.4rem; }
+  .bnk-stepper-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.78rem; font-weight: 600; border: 1px solid var(--rule); }
+  .bnk-stepper-upcoming { background: var(--white); color: var(--ink-soft); }
+  .bnk-stepper-current { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .bnk-stepper-done { background: var(--success); color: var(--white); border-color: var(--success); }
+  .bnk-stepper-label { font-size: 0.68rem; color: var(--ink-soft); white-space: nowrap; }
+  .bnk-stepper-line { width: 40px; height: 1px; background: var(--rule); margin: 0 0.3rem; flex-shrink: 0; align-self: flex-start; margin-top: 14px; }
+  .bnk-stepper-line.done { background: var(--success); }
+
+  .bnk-journey-stage-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.75rem; }
+  .bnk-journey-empty { background: var(--white); border: 1px dashed var(--rule); border-radius: 4px; padding: 2rem 1.5rem; text-align: center; color: var(--ink-soft); font-size: 0.88rem; font-style: italic; margin-bottom: 2rem; }
+  .bnk-journey-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; gap: 0.75rem; }
+  .bnk-log-panel { background: var(--white); border: 1px solid var(--rule); border-radius: 4px; padding: 1.2rem 1.4rem; }
+  .bnk-log-heading { font-size: 1.1rem; margin: 0 0 0.9rem; }
+  .bnk-log-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0; border-top: 1px dashed var(--rule); font-size: 0.78rem; }
+  .bnk-log-row:first-child { border-top: none; }
+  .bnk-log-time { color: var(--ink-soft); font-size: 0.7rem; min-width: 64px; }
+  .bnk-log-text { color: var(--ink); }
+  .bnk-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .bnk-dot-info { background: #6B8CBF; }
+  .bnk-dot-success { background: var(--success); }
+  .bnk-dot-muted { background: #A8ACA0; }
+  .bnk-dot-warn { background: var(--danger); }
+  .bnk-log-empty { font-size: 0.82rem; color: var(--ink-soft); font-style: italic; }
+  .bnk-quest-row { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; border-top: 1px dashed var(--rule); gap: 0.75rem; flex-wrap: wrap; }
+  .bnk-quest-row:first-of-type { border-top: none; }
+  .bnk-quest-title { font-size: 0.86rem; color: var(--ink); }
+  .bnk-quest-badge { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; font-weight: 600; padding: 0.25rem 0.6rem; border-radius: 20px; white-space: nowrap; }
+  .bnk-quest-badge-done { background: #E4EEE7; color: var(--success); }
+  .bnk-quest-badge-progress { background: var(--brass-soft); color: #1E40AF; }
+
+  .bnk-footer-note { text-align: center; font-size: 0.72rem; color: var(--ink-soft); margin-top: 3rem; }
+
+  @media (max-width: 860px) {
+    .bnk-login-wrap { flex-direction: column; }
+    .bnk-login-left { padding: 2.5rem 1.5rem; }
+    .bnk-login-right { padding: 2.5rem 1.5rem; max-width: none; }
+    .bnk-login-headline { font-size: 1.9rem; }
+    .bnk-login-illustration { display: none; }
+    .bnk-stats-row { grid-template-columns: 1fr; }
+    .bnk-offers-grid { grid-template-columns: 1fr; }
+    .bnk-header { padding: 1rem 1.2rem; }
+    .bnk-dashboard-grid { grid-template-columns: minmax(0, 1fr); }
+    .bnk-main-col, .bnk-side-col { display: contents; }
+    .bnk-main-col > *, .bnk-side-col > * { order: 3; }
+    .bnk-hero-account { order: 1; }
+    .bnk-side-col > .bnk-sidebar-panel:first-child { order: 2; }
+    .bnk-card-image { width: 100%; max-width: min(300px, 70%); margin: 0 auto 1rem; display: block; border-radius: 8px; }
+  }
+
+  @media (max-width: 480px) {
+    .bnk-login-left { padding: 2rem 1.25rem; min-height: 42vh; }
+    .bnk-login-right { padding: 2rem 1.25rem; }
+    .bnk-login-headline { font-size: 1.5rem; }
+    .bnk-login-sub { font-size: 0.88rem; }
+    .bnk-brand-word { font-size: 1.05rem; }
+    .bnk-customer-card { padding: 0.75rem 0.9rem; gap: 0.7rem; }
+    .bnk-avatar { width: 34px; height: 34px; font-size: 0.72rem; }
+
+    .bnk-header { padding: 0.85rem 1rem; }
+    .bnk-nav-tabs { padding: 0 1rem; }
+    .bnk-hero-balance-value { font-size: 1.3rem; }
+    .bnk-header-right { gap: 0.6rem; font-size: 0.9rem; }
+    .bnk-signout-btn span { display: none; }
+    .bnk-signout-btn { padding: 0.4rem 0.55rem; }
+
+    .bnk-body { padding: 1.75rem 1rem 3rem; }
+    .bnk-tile { padding: 0.9rem 1rem; }
+    .bnk-tile-value { font-size: 1.25rem; }
+
+    .bnk-section-title { font-size: 1.25rem; }
+    .bnk-section-controls { width: 100%; }
+    .bnk-icon-btn { font-size: 0.72rem; padding: 0.35rem 0.55rem; }
+    .bnk-live-badge { font-size: 0.7rem; }
+
+    .bnk-card { padding: 1rem; }
+    .bnk-card-image { width: calc(100% + 2rem); margin: -1rem -1rem 0.9rem; aspect-ratio: 500 / 260; }
+    .bnk-card-actions { flex-direction: column; }
+    .bnk-btn-primary, .bnk-card-actions .bnk-btn-ghost { width: 100%; }
+
+    .bnk-receipt-row { font-size: 0.72rem; }
+    .bnk-log-row { flex-wrap: wrap; }
+    .bnk-log-panel { padding: 1rem 1.1rem; }
+
+    .bnk-info-callout { font-size: 0.78rem; padding: 0.8rem 0.9rem; }
+
+    .bnk-journey-section { padding: 1rem 1rem 1.1rem; }
+    .bnk-journey-col { min-width: 148px; padding: 0.7rem; }
+    .bnk-journey-title { font-size: 1.05rem; }
+
+    .bnk-stepper-dot { width: 24px; height: 24px; font-size: 0.7rem; }
+    .bnk-stepper-label { font-size: 0.62rem; }
+    .bnk-stepper-line { width: 22px; }
+    .bnk-journey-nav { flex-wrap: wrap; }
+    .bnk-journey-nav .bnk-btn-primary { width: 100%; order: -1; margin-bottom: 0.5rem; }
+  }

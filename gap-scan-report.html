@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iREA Gap Scan: Sample Bank</title>
+<style>
+  :root {
+    --bg: #f4f3ef; --surface: #fcfcfb; --ink: #1d1d1b; --ink-2: #5c5b55; --ink-3: #8a897f;
+    --line: #e3e1da; --grid: #ecebe5; --accent: #1f3a5f;
+    --missing: #2a78d6; --partial: #eb6834; --covered: #1baf7a; --context: #d9d7cf;
+    --pill-bg: #efeee9; --warn-bg: #fff4e5; --warn-ink: #7a4b00;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --serif: Georgia, "Times New Roman", serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121211; --surface: #1a1a19; --ink: #f0efec; --ink-2: #c3c2b7; --ink-3: #8f8e85;
+      --line: #2e2d2a; --grid: #262523; --accent: #9cc1ef;
+      --missing: #3987e5; --partial: #d95926; --covered: #199e70; --context: #3a3935;
+      --pill-bg: #262523; --warn-bg: #2d2416; --warn-ink: #f2c879;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font); }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 60px; }
+  header.top { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; margin-bottom: 8px; }
+  .eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  h1 { font: 400 32px/1.15 var(--serif); margin: 4px 0 0; }
+  h2 { font-size: 16px; font-weight: 600; margin: 0 0 2px; }
+  .sub { color: var(--ink-2); font-size: 13px; margin: 0 0 14px; max-width: 70ch; }
+  .lede { font-size: 17px; max-width: 72ch; margin: 14px 0 6px; }
+  .lede b { font-weight: 600; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button, select, input[type=search] {
+    font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--ink-3); }
+  label.ctl { font-size: 13px; color: var(--ink-2); display: inline-flex; gap: 6px; align-items: center; }
+  .banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin: 14px 0 4px; }
+  .grid { display: grid; gap: 16px; }
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin: 18px 0; }
+  .two { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; min-width: 0; }
+  .kpi .k { font-size: 12px; color: var(--ink-2); }
+  .kpi .v { font: 400 34px/1.1 var(--serif); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .kpi .n { font-size: 12px; color: var(--ink-3); margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .kpi.hero { border-color: var(--missing); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--ink-2); margin: 0 0 8px; }
+  .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .chart text { font-family: var(--font); }
+  .t-lbl { fill: var(--ink); font-size: 12.5px; }
+  .t-val { fill: var(--ink); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .t-dim { fill: var(--ink-3); font-size: 11px; }
+  .tip { position: fixed; pointer-events: none; z-index: 50; background: var(--surface); border: 1px solid var(--line);
+         box-shadow: 0 6px 24px rgba(0,0,0,.14); border-radius: 8px; padding: 8px 10px; font-size: 12px; max-width: 280px; display: none; }
+  .tip b { display: block; margin-bottom: 2px; }
+  .tip span { display: block; color: var(--ink-2); }
+  .tw { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 600; color: var(--ink-2); font-size: 12px; padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; cursor: pointer; user-select: none; }
+  th.nosort { cursor: default; }
+  th .arr { color: var(--ink-3); font-size: 10px; }
+  td { padding: 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; background: var(--pill-bg); white-space: nowrap; }
+  .st { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .st i { width: 8px; height: 8px; border-radius: 2px; display: inline-block; }
+  .muted { color: var(--ink-3); }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+  .count { font-size: 12px; color: var(--ink-3); margin-left: auto; align-self: center; }
+  details { color: var(--ink-2); font-size: 13px; }
+  details summary { cursor: pointer; color: var(--ink); font-weight: 600; }
+  details li { margin: 6px 0; }
+  section { margin-top: 16px; }
+  footer { margin-top: 28px; font-size: 12px; color: var(--ink-3); }
+  @media (max-width: 520px) { .two { grid-template-columns: 1fr; } h1 { font-size: 26px; } .kpi .v { font-size: 28px; } }
+  @media print {
+    body { background: #fff; }
+    .tools, .filters, .noprint { display: none !important; }
+    .card { break-inside: avoid; border-color: #ccc; }
+    .wrap { max-width: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <div class="eyebrow">iREA Gap Scan · Pega CDH</div>
+      <h1 id="title">Missed CDH opportunities</h1>
+    </div>
+    <div class="tools noprint">
+      <label class="ctl" title="How much of a partly covered action's value counts as missing">Partial counts as
+        <select id="share">
+          <option value="0.25">25% missing</option><option value="0.5" selected>50% missing</option>
+          <option value="0.75">75% missing</option><option value="1">100% missing</option>
+        </select>
+      </label>
+      <button id="load">Load scan CSV</button>
+      <input id="file" type="file" accept=".csv,text/csv" hidden>
+      <button id="print">Print / PDF</button>
+    </div>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+  <p class="lede" id="lede"></p>
+  <p class="sub" id="meta"></p>
+
+  <div class="grid kpis" id="kpis"></div>
+
+  <div class="grid two">
+    <section class="card" id="sec-value">
+      <h2>Where the missing value sits</h2>
+      <p class="sub">Annual value of missing and partial actions by journey. Bar: most likely (P50). Line: cautious to optimistic (P10 to P90).</p>
+      <div class="chart" id="ch-value"></div>
+    </section>
+    <section class="card" id="sec-cov">
+      <h2>What the bank already has</h2>
+      <p class="sub">iREA actions per journey, matched to the bank's own CDH actions.</p>
+      <div class="legend">
+        <span><i class="sw" style="background:var(--covered)"></i>Covered</span>
+        <span><i class="sw" style="background:var(--partial)"></i>Partial</span>
+        <span><i class="sw" style="background:var(--missing)"></i>Missing</span>
+      </div>
+      <div class="chart" id="ch-cov"></div>
+    </section>
+  </div>
+
+  <section class="card" id="sec-tier">
+    <h2 id="tier-title">Coverage by empathy-first tier</h2>
+    <p class="sub">Share of iREA actions in each tier that the bank has in full or in part. iREA ranks Service, then Wellness, then Retention, then Sales.</p>
+    <div class="chart" id="ch-tier"></div>
+  </section>
+
+  <section class="card" id="sec-top">
+    <h2>Top 10 actions to build first</h2>
+    <p class="sub">Ranked by missing annual value (P50). "Bank today" is the closest existing bank action and what it lacks.</p>
+    <div class="tw"><table id="tb-top"></table></div>
+  </section>
+
+  <section class="card" id="sec-detail">
+    <h2>Treatments, policies and contact rules</h2>
+    <p class="sub" id="detail-sub"></p>
+    <div id="detail-body">
+      <div class="legend">
+        <span><i class="sw" style="background:var(--covered)"></i>Same</span>
+        <span><i class="sw" style="background:var(--partial)"></i>Different</span>
+        <span><i class="sw" style="background:var(--missing)"></i>Missing in bank</span>
+        <span><i class="sw" style="background:var(--context)"></i>Extra in bank</span>
+      </div>
+      <div class="chart" id="ch-detail"></div>
+      <div class="filters noprint" style="margin-top:14px">
+        <select id="f-darea"><option value="">All areas</option><option>Treatments</option><option>Eligibility</option><option>Suitability</option><option>Applicability</option><option>Contact policy</option></select>
+        <select id="f-dstatus">
+          <option value="attention" selected>Needs attention (different or missing)</option>
+          <option value="">All results</option><option>Same</option><option>Different</option><option>Missing in bank</option><option>Extra in bank</option>
+        </select>
+        <input id="f-dq" type="search" placeholder="Search actions or rules">
+        <button id="export-detail">Export CSV</button>
+        <span class="count" id="f-dcount"></span>
+      </div>
+      <div class="tw"><table id="tb-detail"></table></div>
+    </div>
+  </section>
+
+  <section class="card" id="sec-all">
+    <h2>All iREA actions</h2>
+    <p class="sub">Filter, sort or search, then export the current view as CSV.</p>
+    <div class="filters noprint">
+      <select id="f-journey"><option value="">All journeys</option></select>
+      <select id="f-cov"><option value="">All coverage</option><option>Covered</option><option>Partial</option><option>Missing</option></select>
+      <select id="f-tier"><option value="">All tiers</option><option>Service</option><option>Wellness</option><option>Retention</option><option>Sales</option></select>
+      <input id="f-q" type="search" placeholder="Search actions">
+      <button id="export">Export CSV</button>
+      <span class="count" id="f-count"></span>
+    </div>
+    <div class="tw"><table id="tb-all"></table></div>
+  </section>
+
+  <div class="grid two">
+    <section class="card" id="sec-gaps">
+      <h2>Data needed to price the rest</h2>
+      <p class="sub">Signals the scan had no feed for. Each unlocks the missing actions listed.</p>
+      <div class="tw"><table id="tb-gaps"></table></div>
+    </section>
+    <section class="card" id="sec-bankonly">
+      <h2>Bank actions with no iREA equivalent</h2>
+      <p class="sub">Kept as they are. Worth a look for overlap or retirement.</p>
+      <div class="tw"><table id="tb-bank"></table></div>
+    </section>
+  </div>
+
+  <section class="card">
+    <details>
+      <summary>How these numbers are made</summary>
+      <ul>
+        <li><b>Coverage.</b> A rule-based matcher compares each uploaded bank CDH action with the reference CDH's actions (by default this site's own Pega CDH) on wording, using banking synonyms (for example FD, CD and time deposit count as the same thing). Covered = an equivalent exists; Partial = it exists but is missing channels, a suitability check, part of the audience, or only loosely matches by name; Missing = none. The matcher is automatic, so treat each match as a lead to confirm, not a verdict. Channels, suitability and audience are only judged when both datasets provide them.</li>
+        <li><b>Value.</b> Each reference action is priced from an editable assumptions table: customers it can reach, response-rate range, and annual value per converted customer. Each range is sampled 2,000 times; P10 is the cautious case, P50 the most likely, P90 the optimistic case. The defaults are placeholders, not the bank's real figures. Values are annual.</li>
+        <li><b>Totals</b> add up action-level values, so the P10 and P90 totals are wider than a combined simulation would give.</li>
+        <li><b>Partial actions</b> count part of their value as missing; change the share with the control at the top.</li>
+        <li><b>Treatments, policies and contact rules.</b> When the bank file is a Pega action catalog export, every matched pair is also compared on its treatments (a live treatment per channel, and whether it carries message text, subject, link and image), its eligibility, suitability and applicability conditions (matched by customer field, then by operator and value) and its contact policies (trigger and suppression period). Pega When rules are not in the catalog export and are not compared.</li>
+        <li><b>Needs data:</b> missing actions whose rules read a signal the bank said it does not have. They are listed, not priced. Only applies when a list of available data signals is supplied.</li>
+      </ul>
+    </details>
+  </section>
+  <footer id="foot"></footer>
+</div>
+<div class="tip" id="tip"></div>
+
+<script id="irea-data" type="application/json">{"bank": "Sample Bank", "scanDate": "2026-11-17", "synthetic": true, "customers": 250000, "actions": [{"action_id": "ONB_WELCOME_SETUP", "action": "Welcome and digital setup, first 90 days", "journey": "J01 Digital Activation & Onboarding", "pillar": "Service", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "NTB Welcome Series", "gap_note": "", "eligible_pct": "0.2", "customers_to_treat": "500", "value_basis": "digital_enroll", "value_p10_usd": "211", "value_p50_usd": "307", "value_p90_usd": "437", "missing_features": ""}, {"action_id": "ONB_DD_SWITCH", "action": "Move your paycheck: direct-deposit switch kit", "journey": "J01 Digital Activation & Onboarding", "pillar": "Sales", "coverage": "Partial", "scan_status": "Evaluated", "bank_action": "Direct Deposit Bonus", "gap_note": "missing channels: in_app, push; no suitability check (IsSmallBusiness); narrower audience (reaches 44% of iREA's eligible customers)", "eligible_pct": "42.0", "customers_to_treat": "47500", "value_basis": "dd_switch", "value_p10_usd": "59992", "value_p50_usd": "82598", "value_p90_usd": "105721", "missing_features": ""}, {"action_id": "ONB_CARD_ACTIVATE", "action": "Activate your new card", "journey": "J01 Digital Activation & Onboarding", "pillar": "Service", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "Card Activation Reminder", "gap_note": "", "eligible_pct": "2.0", "customers_to_treat": "5000", "value_basis": "card_active", "value_p10_usd": "30746", "value_p50_usd": "42713", "value_p90_usd": "54572", "missing_features": ""}, {"action_id": "ONB_ALERTS_SETUP", "action": "Set up balance and payment alerts", "journey": "J01 Digital Activation & Onboarding", "pillar": "Service", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "Alerts Enrollment", "gap_note": "", "eligible_pct": "2.2", "customers_to_treat": "5500", "value_basis": "alerts", "value_p10_usd": "5059", "value_p50_usd": "7436", "value_p90_usd": "10660", "missing_features": ""}, {"action_id": "ONB_DIGITAL_ENROLL", "action": "Enroll in online and mobile banking", "journey": "J01 Digital Activation & Onboarding", "pillar": "Service", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "OLB Enrollment Push", "gap_note": "", "eligible_pct": "33.0", "customers_to_treat": "82500", "value_basis": "digital_enroll", "value_p10_usd": "23304", "value_p50_usd": "33556", "value_p90_usd": "47890", "missing_features": ""}, {"action_id": "TXN_LOW_BALANCE_ALERTS", "action": "Low-balance alerts to avoid overdrafts", "journey": "J02 Transaction Alerts & Payments", "pillar": "Wellness", "coverage": "Partial", "scan_status": "Evaluated", "bank_action": "Alerts Enrollment", "gap_note": "narrower audience (reaches 44% of iREA's eligible customers)", "eligible_pct": "10.4", "customers_to_treat": "26000", "value_basis": "low_balance", "value_p10_usd": "40471", "value_p50_usd": "58390", "value_p90_usd": "83670", "missing_features": ""}, {"action_id": "TXN_CARD_PAYMENT_REMINDER", "action": "Card payment due in the next 5 days", "journey": "J02 Transaction Alerts & Payments", "pillar": "Service", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "Payment Due Reminder", "gap_note": "", "eligible_pct": "7.2", "customers_to_treat": "18000", "value_basis": "payment_reminder", "value_p10_usd": "22749", "value_p50_usd": "33416", "value_p90_usd": "47614", "missing_features": ""}, {"action_id": "TXN_LARGE_DEPOSIT", "action": "Large deposit received: put it to work", "journey": "J02 Transaction Alerts & Payments", "pillar": "Wellness", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "3.6", "customers_to_treat": "9000", "value_basis": "large_deposit", "value_p10_usd": "163509", "value_p50_usd": "253023", "value_p90_usd": "372768", "missing_features": ""}, {"action_id": "TXN_OVERDRAFT_GOODWILL", "action": "Goodwill fee refund for long-standing customers", "journey": "J02 Transaction Alerts & Payments", "pillar": "Retention", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "7.2", "customers_to_treat": "13000", "value_basis": "attrition_save", "value_p10_usd": "206638", "value_p50_usd": "521475", "value_p90_usd": "939423", "missing_features": ""}, {"action_id": "SAV_OPEN_SAVINGS", "action": "Open a high-yield savings account", "journey": "J03 Savings & Financial Wellness", "pillar": "Sales", "coverage": "Partial", "scan_status": "Evaluated", "bank_action": "Savings Account Offer", "gap_note": "no suitability check (OverdraftCount90); narrower audience (reaches 40% of iREA's eligible customers)", "eligible_pct": "28.4", "customers_to_treat": "14500", "value_basis": "new_savings", "value_p10_usd": "8279", "value_p50_usd": "13543", "value_p90_usd": "19978", "missing_features": ""}, {"action_id": "SAV_EMERGENCY_FUND", "action": "Start an emergency fund", "journey": "J03 Savings & Financial Wellness", "pillar": "Wellness", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "22.2", "customers_to_treat": "50000", "value_basis": "engagement-only", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "SAV_CD_RENEWAL", "action": "CD maturing: renew or build a ladder", "journey": "J03 Savings & Financial Wellness", "pillar": "Retention", "coverage": "Partial", "scan_status": "Evaluated", "bank_action": "CD Maturity Notice", "gap_note": "missing channels: in_app, sms; narrower audience (reaches 50% of iREA's eligible customers)", "eligible_pct": "4.0", "customers_to_treat": "7000", "value_basis": "cd_renewal", "value_p10_usd": "298099", "value_p50_usd": "401635", "value_p90_usd": "549388", "missing_features": ""}, {"action_id": "SAV_OUTFLOW_SAVE", "action": "Money moving out: better-rate offer", "journey": "J03 Savings & Financial Wellness", "pillar": "Retention", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "Rate Match Retention", "gap_note": "", "eligible_pct": "10.6", "customers_to_treat": "14500", "value_basis": "outflow_save", "value_p10_usd": "52287", "value_p50_usd": "75582", "value_p90_usd": "107996", "missing_features": ""}, {"action_id": "COL_EARLY_CURE", "action": "Early help: catch up before 30 days late", "journey": "J03 Savings & Financial Wellness", "pillar": "Wellness", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "4.2", "customers_to_treat": "10000", "value_basis": "early_cure", "value_p10_usd": "138681", "value_p50_usd": "187945", "value_p90_usd": "259916", "missing_features": ""}, {"action_id": "COL_HARDSHIP", "action": "Hardship program offer", "journey": "J03 Savings & Financial Wellness", "pillar": "Wellness", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "0.4", "customers_to_treat": "1000", "value_basis": "hardship", "value_p10_usd": "107521", "value_p50_usd": "158530", "value_p90_usd": "221737", "missing_features": ""}, {"action_id": "DIG_PAPERLESS", "action": "Go paperless", "journey": "J04 Digital Deepening & Card Engagement", "pillar": "Wellness", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "eStatements Offer", "gap_note": "", "eligible_pct": "37.8", "customers_to_treat": "89500", "value_basis": "paperless", "value_p10_usd": "24084", "value_p50_usd": "33662", "value_p90_usd": "44232", "missing_features": ""}, {"action_id": "DIG_WALLET_PROVISION", "action": "Add your card to your mobile wallet", "journey": "J04 Digital Deepening & Card Engagement", "pillar": "Wellness", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "21.4", "customers_to_treat": "52500", "value_basis": "wallet", "value_p10_usd": "45530", "value_p50_usd": "72062", "value_p90_usd": "106633", "missing_features": ""}, {"action_id": "DIG_CARD_REACTIVATE", "action": "Dormant card: reasons to use it again", "journey": "J04 Digital Deepening & Card Engagement", "pillar": "Sales", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "Card Spend Bonus", "gap_note": "", "eligible_pct": "7.2", "customers_to_treat": "10500", "value_basis": "card_active", "value_p10_usd": "27571", "value_p50_usd": "40316", "value_p90_usd": "57200", "missing_features": ""}, {"action_id": "DIG_TOP_OF_WALLET", "action": "Put recurring bills on your card", "journey": "J04 Digital Deepening & Card Engagement", "pillar": "Sales", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "3.8", "customers_to_treat": "2500", "value_basis": "wallet", "value_p10_usd": "427", "value_p50_usd": "688", "value_p90_usd": "1022", "missing_features": ""}, {"action_id": "DIG_MOBILE_DEPOSIT", "action": "Deposit checks with your phone", "journey": "J04 Digital Deepening & Card Engagement", "pillar": "Service", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "2.8", "customers_to_treat": "7000", "value_basis": "engagement-only", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "DIG_P2P_ENROLL", "action": "Send money to friends: enroll in P2P", "journey": "J04 Digital Deepening & Card Engagement", "pillar": "Wellness", "coverage": "Missing", "scan_status": "Needs data", "bank_action": "", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "engagement-only", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "P2PEnrolled"}, {"action_id": "LEND_CC_ACQUISITION", "action": "Pre-screened credit card offer", "journey": "J05 Lending & Card Cross-Sell", "pillar": "Sales", "coverage": "Covered", "scan_status": "Needs data", "bank_action": "Cash Rewards Card Offer", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "new_card", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "CreditScoreBand"}, {"action_id": "LEND_DEBT_CONSOLIDATION", "action": "Lower-rate personal loan to consolidate card debt", "journey": "J05 Lending & Card Cross-Sell", "pillar": "Sales", "coverage": "Missing", "scan_status": "Needs data", "bank_action": "", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "personal_loan", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "CreditScoreBand"}, {"action_id": "LEND_CREDIT_LINE_INCREASE", "action": "Credit line increase for existing cardholders", "journey": "J05 Lending & Card Cross-Sell", "pillar": "Sales", "coverage": "Partial", "scan_status": "Evaluated", "bank_action": "CLI Offer", "gap_note": "no suitability check (CardDaysPastDue, OverdraftCount90); narrower audience (reaches 33% of iREA's eligible customers)", "eligible_pct": "5.4", "customers_to_treat": "2500", "value_basis": "cli", "value_p10_usd": "1455", "value_p50_usd": "2435", "value_p90_usd": "3585", "missing_features": ""}, {"action_id": "LEND_AUTO_REFI", "action": "Refinance your auto loan at a lower rate", "journey": "J05 Lending & Card Cross-Sell", "pillar": "Sales", "coverage": "Covered", "scan_status": "Needs data", "bank_action": "Auto Refi Campaign Q3", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "auto_refi", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "CreditScoreBand"}, {"action_id": "LEND_HELOC", "action": "Home equity line of credit", "journey": "J05 Lending & Card Cross-Sell", "pillar": "Sales", "coverage": "Covered", "scan_status": "Needs data", "bank_action": "HELOC Offer", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "heloc", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "HomeEquityEstimate; CreditScoreBand"}, {"action_id": "RET_DD_STOPPED", "action": "Direct deposit stopped: check in and save", "journey": "J06 Retention & Win-Back", "pillar": "Retention", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "3.6", "customers_to_treat": "5000", "value_basis": "attrition_save", "value_p10_usd": "129165", "value_p50_usd": "191953", "value_p90_usd": "269224", "missing_features": ""}, {"action_id": "RET_BALANCE_DROP", "action": "Balance falling fast: relationship check-in", "journey": "J06 Retention & Win-Back", "pillar": "Retention", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "1.4", "customers_to_treat": "1000", "value_basis": "attrition_save", "value_p10_usd": "14126", "value_p50_usd": "20477", "value_p90_usd": "29140", "missing_features": ""}, {"action_id": "RET_DORMANCY", "action": "Dormant account: welcome back", "journey": "J06 Retention & Win-Back", "pillar": "Retention", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "0.0", "customers_to_treat": "0", "value_basis": "attrition_save", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "RET_COMPLAINT_RECOVERY", "action": "Complaint recovery follow-up", "journey": "J06 Retention & Win-Back", "pillar": "Retention", "coverage": "Missing", "scan_status": "Needs data", "bank_action": "", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "attrition_save", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "OpenComplaint"}, {"action_id": "RET_SECOND_PRODUCT", "action": "Single-product customer: add a second product", "journey": "J06 Retention & Win-Back", "pillar": "Sales", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "7.0", "customers_to_treat": "4500", "value_basis": "engagement-only", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "WLTH_ADVISOR_INTRO", "action": "Meet a financial advisor", "journey": "J07 Wealth & Advisory", "pillar": "Sales", "coverage": "Partial", "scan_status": "Evaluated", "bank_action": "Advisor Appointment", "gap_note": "no suitability check (IsSmallBusiness); narrower audience (reaches 43% of iREA's eligible customers)", "eligible_pct": "4.2", "customers_to_treat": "4500", "value_basis": "advisory", "value_p10_usd": "33965", "value_p50_usd": "55276", "value_p90_usd": "81117", "missing_features": ""}, {"action_id": "WLTH_IRA_SEASON", "action": "IRA contribution reminder before the tax deadline", "journey": "J07 Wealth & Advisory", "pillar": "Sales", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "0.0", "customers_to_treat": "0", "value_basis": "ira", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "WLTH_CD_TO_INVEST", "action": "Maturing CD: explore investment options", "journey": "J07 Wealth & Advisory", "pillar": "Sales", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "3.2", "customers_to_treat": "1500", "value_basis": "advisory", "value_p10_usd": "11238", "value_p50_usd": "18459", "value_p90_usd": "27229", "missing_features": ""}, {"action_id": "WLTH_PORTFOLIO_REVIEW", "action": "Annual portfolio review", "journey": "J07 Wealth & Advisory", "pillar": "Wellness", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "10.2", "customers_to_treat": "20500", "value_basis": "engagement-only", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "SMB_CASHFLOW_ALERT", "action": "Cash-flow dip: alert and tips", "journey": "J08 Small Business Banking", "pillar": "Wellness", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "0.4", "customers_to_treat": "500", "value_basis": "engagement-only", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "SMB_MERCHANT_SERVICES", "action": "Accept cards with merchant services", "journey": "J08 Small Business Banking", "pillar": "Sales", "coverage": "Missing", "scan_status": "Needs data", "bank_action": "", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "merchant", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "HasMerchantServices"}, {"action_id": "SMB_PAYROLL", "action": "Run payroll with the bank", "journey": "J08 Small Business Banking", "pillar": "Sales", "coverage": "Missing", "scan_status": "Needs data", "bank_action": "", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "payroll", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "HasPayrollService"}, {"action_id": "SMB_BUSINESS_CARD", "action": "Business credit card", "journey": "J08 Small Business Banking", "pillar": "Sales", "coverage": "Partial", "scan_status": "Evaluated", "bank_action": "Business Card Offer", "gap_note": "no suitability check (OverdraftCount90)", "eligible_pct": "0.6", "customers_to_treat": "1500", "value_basis": "new_card", "value_p10_usd": "1782", "value_p50_usd": "2918", "value_p90_usd": "4310", "missing_features": ""}, {"action_id": "FRD_NEW_PAYEE_CHECK", "action": "Large transfer to a new payee: please verify", "journey": "J09 Fraud & Scam Protection", "pillar": "Service", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "2.2", "customers_to_treat": "5500", "value_basis": "fraud_avoided", "value_p10_usd": "114396", "value_p50_usd": "190697", "value_p90_usd": "313012", "missing_features": ""}, {"action_id": "FRD_ENABLE_2FA", "action": "Turn on two-factor authentication", "journey": "J09 Fraud & Scam Protection", "pillar": "Service", "coverage": "Partial", "scan_status": "Evaluated", "bank_action": "Security Tips", "gap_note": "narrower audience (reaches 45% of iREA's eligible customers)", "eligible_pct": "33.2", "customers_to_treat": "83000", "value_basis": "engagement-only", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "FRD_NEW_DEVICE", "action": "New device sign-in: was this you?", "journey": "J09 Fraud & Scam Protection", "pillar": "Service", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "New Device Alert", "gap_note": "", "eligible_pct": "7.4", "customers_to_treat": "18500", "value_basis": "engagement-only", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "FRD_SCAM_EDUCATION_65", "action": "Scam awareness for older customers", "journey": "J09 Fraud & Scam Protection", "pillar": "Wellness", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "28.0", "customers_to_treat": "50500", "value_basis": "engagement-only", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "FRD_CARD_CONTROLS", "action": "Lock, unlock and card controls", "journey": "J09 Fraud & Scam Protection", "pillar": "Service", "coverage": "Missing", "scan_status": "Needs data", "bank_action": "", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "engagement-only", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "CardControlsEnabled"}, {"action_id": "INS_HOMEOWNERS", "action": "Homeowners insurance quote", "journey": "J10 Insurance & Protection", "pillar": "Sales", "coverage": "Covered", "scan_status": "Needs data", "bank_action": "Home Insurance Quote", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "insurance", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "HasHomeInsurance"}, {"action_id": "INS_TRAVEL", "action": "Travel insurance for international trips", "journey": "J10 Insurance & Protection", "pillar": "Sales", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "5.6", "customers_to_treat": "2000", "value_basis": "insurance_small", "value_p10_usd": "516", "value_p50_usd": "821", "value_p90_usd": "1185", "missing_features": ""}, {"action_id": "INS_AUTO_REVIEW", "action": "Auto insurance review with your auto loan", "journey": "J10 Insurance & Protection", "pillar": "Sales", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "Auto Insurance Partner Offer", "gap_note": "", "eligible_pct": "16.8", "customers_to_treat": "14000", "value_basis": "insurance", "value_p10_usd": "21025", "value_p50_usd": "33666", "value_p90_usd": "50336", "missing_features": ""}, {"action_id": "INS_MORTGAGE_LIFE", "action": "Life cover to protect your mortgage", "journey": "J10 Insurance & Protection", "pillar": "Sales", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "Mortgage Protection Offer", "gap_note": "", "eligible_pct": "19.2", "customers_to_treat": "19000", "value_basis": "insurance", "value_p10_usd": "28086", "value_p50_usd": "46588", "value_p90_usd": "68716", "missing_features": ""}, {"action_id": "LOY_ANNIVERSARY", "action": "Thank you on your banking anniversary", "journey": "J11 Loyalty & Lifecycle Celebration", "pillar": "Wellness", "coverage": "Missing", "scan_status": "Evaluated", "bank_action": "", "gap_note": "", "eligible_pct": "6.0", "customers_to_treat": "11500", "value_basis": "engagement-only", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "LOY_BIRTHDAY", "action": "Birthday greeting", "journey": "J11 Loyalty & Lifecycle Celebration", "pillar": "Wellness", "coverage": "Covered", "scan_status": "Evaluated", "bank_action": "Birthday Message", "gap_note": "", "eligible_pct": "8.6", "customers_to_treat": "15000", "value_basis": "engagement-only", "value_p10_usd": "0", "value_p50_usd": "0", "value_p90_usd": "0", "missing_features": ""}, {"action_id": "LOY_REWARDS_REDEEM", "action": "Redeem your card rewards", "journey": "J11 Loyalty & Lifecycle Celebration", "pillar": "Retention", "coverage": "Missing", "scan_status": "Needs data", "bank_action": "", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "card_active", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "RewardsPointsBalance"}, {"action_id": "LOY_NPS_SURVEY", "action": "How did we do? After a service contact", "journey": "J11 Loyalty & Lifecycle Celebration", "pillar": "Service", "coverage": "Missing", "scan_status": "Needs data", "bank_action": "", "gap_note": "", "eligible_pct": "", "customers_to_treat": "", "value_basis": "engagement-only", "value_p10_usd": "", "value_p50_usd": "", "value_p90_usd": "", "missing_features": "RecentServiceContact7d"}], "bankOnly": [{"id": "BA022", "issue": "Sales", "group": "Mortgage", "name": "Mortgage Rate Lock Promo", "channels": "Email, Direct Mail"}, {"id": "BA023", "issue": "Marketing", "group": "Seasonal", "name": "Holiday Spending Campaign", "channels": "Email, Push"}, {"id": "BA024", "issue": "Sales", "group": "Wealth", "name": "529 College Savings Promo", "channels": "Email"}, {"id": "BA025", "issue": "Service", "group": "Branch", "name": "Branch Appointment Reminder", "channels": "SMS"}, {"id": "BA026", "issue": "Sales", "group": "Cards", "name": "Balance Transfer Offer", "channels": "Email, Web"}, {"id": "BA029", "issue": "Service", "group": "Collections", "name": "Collections Call Queue", "channels": "Call Center"}, {"id": "BA030", "issue": "Marketing", "group": "Brand", "name": "Brand Awareness Banner", "channels": "Web"}, {"id": "BA031", "issue": "Sales", "group": "Deposits", "name": "CD Special 13-Month", "channels": "Email, Web"}, {"id": "BA032", "issue": "Service", "group": "Digital", "name": "Mobile App Download", "channels": "SMS, Email"}], "feeds": {"CreditScoreBand": {"description": "Bureau score band (FCRA prescreen or account review)", "feed": "Credit bureau feed"}, "HomeEquityEstimate": {"description": "Estimated home equity", "feed": "AVM / property data feed"}, "HasHomeInsurance": {"description": "Homeowners policy via bank partner", "feed": "Insurance partner feed"}, "OpenComplaint": {"description": "Open complaint in last 30 days", "feed": "Complaints system"}, "HasMerchantServices": {"description": "Business uses bank merchant services", "feed": "Merchant services platform"}, "HasPayrollService": {"description": "Business uses bank payroll", "feed": "Payroll platform"}, "P2PEnrolled": {"description": "Enrolled in person-to-person payments", "feed": "Digital banking platform"}, "CardControlsEnabled": {"description": "Uses card lock/controls", "feed": "Card platform"}, "RewardsPointsBalance": {"description": "Card rewards points balance", "feed": "Rewards platform"}, "RecentServiceContact7d": {"description": "Contact-centre or branch service contact, 7 days", "feed": "Contact-centre / CRM"}}}</script>
+<script>
+(function () {
+  'use strict';
+  var DATA = JSON.parse(document.getElementById('irea-data').textContent);
+  var TIERS = ['Service', 'Wellness', 'Retention', 'Sales'];
+  var COV = ['Covered', 'Partial', 'Missing'];
+  var COLOR = { Covered: 'var(--covered)', Partial: 'var(--partial)', Missing: 'var(--missing)' };
+  var state = { share: 0.5, sortKey: 'missing_p50', sortDir: -1 };
+  var NS = 'http://www.w3.org/2000/svg';
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---------- formatting
+  function money(v) {
+    var a = Math.abs(v);
+    if (a >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+    if (a >= 1e3) return '$' + Math.round(v / 1e3) + 'K';
+    return '$' + Math.round(v);
+  }
+  function int(v) { return Number(v).toLocaleString('en-US'); }
+  function num(v) { return v === null || v === undefined || v === '' ? 0 : Number(v); }
+  function shortJ(j) { return String(j).replace(/^J\d+\s/, ''); }
+  function el(tag, attrs, text) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+  function sv(tag, attrs, text) {
+    var e = document.createElementNS(NS, tag);
+    Object.keys(attrs || {}).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  // ---------- tooltip
+  var tip = $('tip');
+  function showTip(ev, title, lines) {
+    tip.replaceChildren(el('b', null, title));
+    lines.forEach(function (l) { tip.appendChild(el('span', null, l)); });
+    tip.style.display = 'block';
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = Math.min(ev.clientX + 14, window.innerWidth - w - 8);
+    var y = ev.clientY - h - 12 < 8 ? ev.clientY + 16 : ev.clientY - h - 12;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  function hideTip() { tip.style.display = 'none'; }
+  function hover(node, title, linesFn) {
+    node.addEventListener('pointermove', function (ev) { showTip(ev, title, linesFn()); });
+    node.addEventListener('pointerleave', hideTip);
+  }
+
+  // ---------- model
+  function model() {
+    var rows = DATA.actions.map(function (r) {
+      var share = r.coverage === 'Missing' ? 1 : (r.coverage === 'Partial' ? state.share : 0);
+      var priced = r.scan_status === 'Evaluated';
+      var m = function (v) { return priced ? Math.round(num(v) * share) : 0; };
+      return Object.assign({}, r, {
+        priced: priced, missing_p10: m(r.value_p10_usd), missing_p50: m(r.value_p50_usd), missing_p90: m(r.value_p90_usd),
+        treat: priced && r.coverage !== 'Covered' ? num(r.customers_to_treat) : null,
+        bank_today: r.coverage === 'Missing' ? 'Not built' : (r.gap_note ? r.bank_action + ': ' + r.gap_note : r.bank_action)
+      });
+    });
+    var sum = function (arr, f) { return arr.reduce(function (a, r) { return a + r[f]; }, 0); };
+    var count = function (c) { return rows.filter(function (r) { return r.coverage === c; }).length; };
+    var jm = {};
+    rows.forEach(function (r) {
+      var j = jm[r.journey] || (jm[r.journey] = { journey: r.journey, Covered: 0, Partial: 0, Missing: 0, p10: 0, p50: 0, p90: 0, unpriced: 0 });
+      j[r.coverage] += 1; j.p10 += r.missing_p10; j.p50 += r.missing_p50; j.p90 += r.missing_p90;
+      if (r.coverage === 'Missing' && !r.priced) j.unpriced += 1;
+    });
+    var journeys = Object.keys(jm).map(function (k) { return jm[k]; });
+    var tiers = TIERS.map(function (t) {
+      var inT = rows.filter(function (r) { return r.pillar === t; });
+      var has = inT.filter(function (r) { return r.coverage !== 'Missing'; }).length;
+      return { tier: t, total: inT.length, has: has, pct: inT.length ? Math.round(100 * has / inT.length) : 0 };
+    });
+    var gapMap = {};
+    rows.forEach(function (r) {
+      if (r.coverage !== 'Missing' || r.priced || !r.missing_features) return;
+      String(r.missing_features).split(';').map(function (s) { return s.trim(); }).filter(Boolean).forEach(function (f) {
+        (gapMap[f] = gapMap[f] || []).push(r.action);
+      });
+    });
+    var gaps = Object.keys(gapMap).map(function (f) {
+      var info = DATA.feeds[f] || { description: f, feed: '' };
+      return { feature: f, description: info.description, feed: info.feed, actions: gapMap[f] };
+    }).sort(function (a, b) { return b.actions.length - a.actions.length; });
+    var top = rows.filter(function (r) { return r.missing_p50 > 0; }).sort(function (a, b) { return b.missing_p50 - a.missing_p50; }).slice(0, 10);
+    var byJ = journeys.slice().sort(function (a, b) { return b.p50 - a.p50; });
+    return {
+      rows: rows, journeys: journeys, tiers: tiers, gaps: gaps, top: top,
+      h: { total: rows.length, covered: count('Covered'), partial: count('Partial'), missing: count('Missing'),
+           unpriced: rows.filter(function (r) { return r.coverage === 'Missing' && !r.priced; }).length,
+           p10: sum(rows, 'missing_p10'), p50: sum(rows, 'missing_p50'), p90: sum(rows, 'missing_p90'),
+           topJ: byJ.length && byJ[0].p50 > 0 ? shortJ(byJ[0].journey) : '' }
+    };
+  }
+
+  // ---------- header + KPIs
+  function renderHead(M) {
+    $('title').textContent = 'Missed CDH opportunities: ' + DATA.bank;
+    document.title = 'iREA Gap Scan: ' + DATA.bank;
+    var h = M.h, lede = $('lede');
+    lede.replaceChildren();
+    var parts = [['The bank’s CDH has '], [h.covered, 1], [' of the '], [h.total, 1], [' iREA actions in full and '], [h.partial, 1],
+      [' in part. The gaps are worth about '], [money(h.p50), 1], [' a year']];
+    if (h.topJ) parts.push([', most of it in '], [h.topJ, 1]);
+    parts.push(['.']);
+    parts.forEach(function (p) { lede.appendChild(p[1] ? el('b', null, String(p[0])) : document.createTextNode(p[0])); });
+    $('meta').textContent = 'Scan date ' + DATA.scanDate + ' · values scaled to ' + int(DATA.customers) + ' customers · annual, incremental against a control group' +
+      (DATA.reference ? ' · compared against ' + DATA.reference : '');
+    var b = $('banner');
+    b.hidden = !DATA.synthetic;
+    b.textContent = 'Synthetic demo: a made-up bank, synthetic customers and placeholder response rates and finance inputs. Do not quote these figures as real.';
+    var k = $('kpis');
+    k.replaceChildren();
+    [
+      ['Missing value, most likely (P50 / year)', money(h.p50), 'Cautious ' + money(h.p10) + ' · optimistic ' + money(h.p90), 'hero'],
+      ['Fully covered', String(h.covered), 'of ' + h.total + ' iREA actions'],
+      ['Partly covered', String(h.partial), 'exist, but narrower or fewer channels'],
+      ['Missing', String(h.missing), h.unpriced + ' need data before they can be priced']
+    ].forEach(function (t) {
+      var c = el('div', { class: 'card kpi' + (t[3] ? ' ' + t[3] : '') });
+      c.appendChild(el('div', { class: 'k' }, t[0]));
+      c.appendChild(el('div', { class: 'v' }, t[1]));
+      c.appendChild(el('div', { class: 'n' }, t[2]));
+      k.appendChild(c);
+    });
+    $('foot').textContent = 'iREA Gap Scan by Instellars · generated ' + DATA.scanDate + ' · ' + DATA.bank;
+  }
+
+  // ---------- charts (rows with label above bar: reads at any width)
+  function frame(host, rows, rowH, label) {
+    host.replaceChildren();
+    var W = Math.max(280, host.clientWidth || 600), H = rows * rowH + 6;
+    var svg = sv('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': label });
+    host.appendChild(svg);
+    return { svg: svg, W: W };
+  }
+  function measure(svg, text, cls) {
+    var t = sv('text', { class: cls, x: -9999, y: -9999 }, text);
+    svg.appendChild(t);
+    var w = t.getComputedTextLength ? t.getComputedTextLength() : text.length * 7;
+    svg.removeChild(t);
+    return w;
+  }
+
+  function chartValue(M) {
+    var rows = M.journeys.slice().sort(function (a, b) { return b.p50 - a.p50; });
+    var rowH = 46, f = frame($('ch-value'), rows.length, rowH, 'Missing annual value by journey');
+    var svg = f.svg, W = f.W;
+    var padR = 8 + Math.max.apply(null, rows.map(function (r) { return measure(svg, money(r.p50), 't-val'); }).concat([30]));
+    var max = Math.max.apply(null, rows.map(function (r) { return r.p90; }).concat([1]));
+    var x = function (v) { return (v / max) * (W - padR); };
+    rows.forEach(function (r, i) {
+      var g = sv('g', { transform: 'translate(0,' + (i * rowH + 4) + ')' });
+      g.appendChild(sv('text', { class: 't-lbl', x: 0, y: 13 }, shortJ(r.journey)));
+      if (r.p50 > 0) g.appendChild(sv('rect', { x: 0, y: 21, height: 12, rx: 3, width: Math.max(3, x(r.p50)), fill: 'var(--missing)' }));
+      if (r.p90 > 0) {
+        g.appendChild(sv('line', { x1: x(r.p10), x2: x(r.p90), y1: 27, y2: 27, stroke: 'var(--ink)', 'stroke-width': 1.5 }));
+        [r.p10, r.p90].forEach(function (v) { g.appendChild(sv('line', { x1: x(v), x2: x(v), y1: 22, y2: 32, stroke: 'var(--ink)', 'stroke-width': 1.5 })); });
+      }
+      var label = r.p50 > 0 ? money(r.p50) : (r.unpriced ? 'needs data' : '$0');
+      g.appendChild(sv('text', { class: r.p50 > 0 ? 't-val' : 't-dim', x: Math.max(x(r.p90), x(r.p50)) + 8, y: 31 }, label));
+      var hit = sv('rect', { x: 0, y: 0, width: W, height: rowH, fill: 'transparent' });
+      hover(hit, shortJ(r.journey), function () {
+        return ['Most likely: ' + money(r.p50) + ' / yr', 'Range: ' + money(r.p10) + ' to ' + money(r.p90),
+                r.Missing + ' missing · ' + r.Partial + ' partial · ' + r.Covered + ' covered'];
+      });
+      g.appendChild(hit);
+      svg.appendChild(g);
+    });
+  }
+
+  function chartCoverage(M) {
+    var rows = M.journeys.slice().sort(function (a, b) { return a.journey.localeCompare(b.journey); });
+    var rowH = 44, f = frame($('ch-cov'), rows.length, rowH, 'Covered, partial and missing actions by journey');
+    var svg = f.svg, W = f.W;
+    var padR = 8 + measure(svg, '0 of 6 covered', 't-val');
+    var max = Math.max.apply(null, rows.map(function (r) { return r.Covered + r.Partial + r.Missing; }).concat([1]));
+    var unit = (W - padR) / max;
+    rows.forEach(function (r, i) {
+      var g = sv('g', { transform: 'translate(0,' + (i * rowH + 4) + ')' });
+      g.appendChild(sv('text', { class: 't-lbl', x: 0, y: 13 }, shortJ(r.journey)));
+      var x0 = 0;
+      COV.forEach(function (c) {
+        if (!r[c]) return;
+        var w = r[c] * unit;
+        g.appendChild(sv('rect', { x: x0 + (x0 ? 1 : 0), y: 21, height: 12, rx: 3, width: Math.max(2, w - (x0 ? 2 : 1)), fill: COLOR[c] }));
+        x0 += w;
+      });
+      var tot = r.Covered + r.Partial + r.Missing;
+      g.appendChild(sv('text', { class: 't-val', x: x0 + 8, y: 31 }, r.Covered + ' of ' + tot + ' covered'));
+      var hit = sv('rect', { x: 0, y: 0, width: W, height: rowH, fill: 'transparent' });
+      hover(hit, shortJ(r.journey), function () { return COV.map(function (c) { return c + ': ' + r[c]; }); });
+      g.appendChild(hit);
+      svg.appendChild(g);
+    });
+  }
+
+  function chartTier(M) {
+    var rows = M.tiers, rowH = 38, f = frame($('ch-tier'), rows.length, rowH, 'Share of iREA actions the bank has, by tier');
+    var svg = f.svg, W = f.W;
+    var padL = 12 + Math.max.apply(null, rows.map(function (r) { return measure(svg, r.tier, 't-lbl'); }));
+    var padR = 8 + measure(svg, '00 of 00 (100%)', 't-val');
+    var max = Math.max.apply(null, rows.map(function (r) { return r.total; }).concat([1]));
+    var x = function (v) { return (v / max) * (W - padL - padR); };
+    rows.forEach(function (r, i) {
+      var g = sv('g', { transform: 'translate(0,' + (i * rowH + 4) + ')' });
+      g.appendChild(sv('text', { class: 't-lbl', x: 0, y: 19 }, r.tier));
+      g.appendChild(sv('rect', { x: padL, y: 8, height: 14, rx: 3, width: x(r.total), fill: 'var(--context)' }));
+      if (r.has) g.appendChild(sv('rect', { x: padL, y: 8, height: 14, rx: 3, width: Math.max(3, x(r.has)), fill: 'var(--accent)' }));
+      g.appendChild(sv('text', { class: 't-val', x: padL + x(r.total) + 8, y: 19 }, r.has + ' of ' + r.total + ' (' + r.pct + '%)'));
+      var hit = sv('rect', { x: 0, y: 0, width: W, height: rowH, fill: 'transparent' });
+      hover(hit, r.tier, function () { return ['iREA catalog: ' + r.total + ' actions', 'Bank has: ' + r.has + ' (' + r.pct + '%)']; });
+      g.appendChild(hit);
+      svg.appendChild(g);
+    });
+    var sales = rows.filter(function (r) { return r.tier === 'Sales'; })[0];
+    var rest = rows.filter(function (r) { return r.tier !== 'Sales'; });
+    var restPct = Math.round(100 * rest.reduce(function (a, r) { return a + r.has; }, 0) / Math.max(1, rest.reduce(function (a, r) { return a + r.total; }, 0)));
+    $('tier-title').textContent = sales && sales.pct > restPct
+      ? 'The catalog leans to sales: ' + sales.pct + '% of sales actions vs ' + restPct + '% of service, wellness and retention'
+      : 'Coverage by empathy-first tier';
+  }
+
+  // ---------- tables
+  function status(c) {
+    var s = el('span', { class: 'st' });
+    var i = el('i'); i.style.background = COLOR[c];
+    s.appendChild(i); s.appendChild(document.createTextNode(c));
+    return s;
+  }
+  function table(tb, cols, rows, sortable) {
+    tb.replaceChildren();
+    var thead = el('thead'), tr = el('tr');
+    cols.forEach(function (c) {
+      var th = el('th', { class: (c.num ? 'num' : '') + (sortable ? '' : ' nosort') }, c.label);
+      if (sortable) {
+        if (state.sortKey === c.key) th.appendChild(el('span', { class: 'arr' }, state.sortDir > 0 ? ' ▲' : ' ▼'));
+        th.addEventListener('click', function () {
+          state.sortDir = state.sortKey === c.key ? -state.sortDir : (c.num ? -1 : 1);
+          state.sortKey = c.key; render();
+        });
+      }
+      tr.appendChild(th);
+    });
+    thead.appendChild(tr); tb.appendChild(thead);
+    var tbody = el('tbody');
+    rows.forEach(function (r) {
+      var row = el('tr');
+      cols.forEach(function (c) {
+        var td = el('td', { class: c.num ? 'num' : '' });
+        var v = c.render ? c.render(r) : r[c.key];
+        if (v instanceof Node) td.appendChild(v); else td.textContent = v === null || v === undefined ? '—' : v;
+        row.appendChild(td);
+      });
+      tbody.appendChild(row);
+    });
+    if (!rows.length) {
+      var e = el('tr'), td = el('td', { colspan: cols.length, class: 'muted' }, 'Nothing matches.');
+      e.appendChild(td); tbody.appendChild(e);
+    }
+    tb.appendChild(tbody);
+  }
+
+  var ACTION_COLS = [
+    { key: 'action', label: 'Action' },
+    { key: 'journey', label: 'Journey', render: function (r) { return shortJ(r.journey); } },
+    { key: 'pillar', label: 'Tier', render: function (r) { return el('span', { class: 'pill' }, r.pillar); } },
+    { key: 'bank_today', label: 'Bank today' },
+    { key: 'treat', label: 'Customers to treat', num: true, render: function (r) { return r.treat === null ? '—' : int(r.treat); } },
+    { key: 'missing_p50', label: 'Missing value / yr', num: true, render: function (r) {
+      if (r.coverage !== 'Covered' && r.priced && r.value_basis === 'engagement-only') return el('span', { class: 'muted', title: 'Engagement action: its value shows up in other outcomes' }, 'Not valued');
+      return r.coverage === 'Covered' ? '\u2014' : money(r.missing_p50); } }
+  ];
+
+  function renderTables(M) {
+    table($('tb-top'), ACTION_COLS, M.top, false);
+
+    var fj = $('f-journey');
+    if (fj.options.length === 1) {
+      M.journeys.map(function (j) { return j.journey; }).sort().forEach(function (j) { fj.appendChild(el('option', { value: j }, shortJ(j))); });
+    }
+    var q = $('f-q').value.trim().toLowerCase();
+    var rows = M.rows.filter(function (r) {
+      return (!fj.value || r.journey === fj.value) && (!$('f-cov').value || r.coverage === $('f-cov').value) &&
+        (!$('f-tier').value || r.pillar === $('f-tier').value) &&
+        (!q || (r.action + ' ' + r.bank_action + ' ' + r.action_id).toLowerCase().indexOf(q) >= 0);
+    });
+    var k = state.sortKey, d = state.sortDir;
+    rows.sort(function (a, b) {
+      var x = a[k], y = b[k];
+      if (typeof x === 'number' || typeof y === 'number') return ((x || 0) - (y || 0)) * d;
+      return String(x || '').localeCompare(String(y || '')) * d;
+    });
+    state.view = rows;
+    var cols = [ACTION_COLS[0], ACTION_COLS[1], ACTION_COLS[2],
+      { key: 'coverage', label: 'Coverage', render: function (r) { return status(r.coverage); } },
+      ACTION_COLS[3],
+      { key: 'scan_status', label: 'Priced', render: function (r) { return r.priced ? 'Yes' : 'Needs data'; } },
+      ACTION_COLS[4], ACTION_COLS[5],
+      { key: 'detail_gaps', label: 'Rule gaps', num: true, render: function (r) { return r.detail_gaps === '' || r.detail_gaps == null ? '\u2014' : r.detail_gaps; } }];
+    table($('tb-all'), cols, rows, true);
+    $('f-count').textContent = rows.length + ' of ' + M.rows.length + ' actions';
+
+    table($('tb-gaps'), [
+      { key: 'description', label: 'Signal' }, { key: 'feed', label: 'Feed needed' },
+      { key: 'n', label: 'Actions', num: true, render: function (r) { return String(r.actions.length); } },
+      { key: 'list', label: 'Unlocks', render: function (r) { return r.actions.join(', '); } }
+    ], M.gaps, false);
+    $('sec-gaps').hidden = !M.gaps.length;
+
+    table($('tb-bank'), [
+      { key: 'name', label: 'Bank action' }, { key: 'issue', label: 'Issue / group', render: function (r) { return r.issue + ' / ' + r.group; } },
+      { key: 'channels', label: 'Channels' }
+    ], DATA.bankOnly || [], false);
+    $('sec-bankonly').hidden = !(DATA.bankOnly && DATA.bankOnly.length);
+  }
+
+  // ---------- treatments / policies / contact rules (matched pairs)
+  var DAREAS = ['Treatments', 'Eligibility', 'Suitability', 'Applicability', 'Contact policy'];
+  var DSTAT = ['Same', 'Different', 'Missing in bank', 'Extra in bank'];
+  var DCOLOR = { 'Same': 'var(--covered)', 'Different': 'var(--partial)', 'Missing in bank': 'var(--missing)', 'Extra in bank': 'var(--context)' };
+
+  function chartDetail(S) {
+    var areas = DAREAS.filter(function (a) { return DSTAT.some(function (st) { return S.areas[a] && S.areas[a][st]; }); });
+    var rowH = 44, f = frame($('ch-detail'), areas.length, rowH, 'How matched actions differ, by area');
+    var svg = f.svg, W = f.W;
+    var padR = 8 + measure(svg, '000 of 000 differ', 't-val');
+    var tot = function (a) { return DSTAT.reduce(function (t, st) { return t + (S.areas[a][st] || 0); }, 0); };
+    var max = Math.max.apply(null, areas.map(tot).concat([1]));
+    var unit = (W - padR) / max;
+    areas.forEach(function (a, i) {
+      var g = sv('g', { transform: 'translate(0,' + (i * rowH + 4) + ')' }), x0 = 0;
+      g.appendChild(sv('text', { class: 't-lbl', x: 0, y: 13 }, a));
+      DSTAT.forEach(function (st) {
+        var n = S.areas[a][st]; if (!n) return;
+        var w = n * unit;
+        g.appendChild(sv('rect', { x: x0 + (x0 ? 1 : 0), y: 21, height: 12, rx: 3, width: Math.max(2, w - (x0 ? 2 : 1)), fill: DCOLOR[st] }));
+        x0 += w;
+      });
+      var diff = (S.areas[a]['Different'] || 0) + (S.areas[a]['Missing in bank'] || 0);
+      g.appendChild(sv('text', { class: 't-val', x: x0 + 8, y: 31 }, diff + ' of ' + tot(a) + ' differ'));
+      var hit = sv('rect', { x: 0, y: 0, width: W, height: rowH, fill: 'transparent' });
+      hover(hit, a, function () { return DSTAT.map(function (st) { return st + ': ' + (S.areas[a][st] || 0); }); });
+      g.appendChild(hit);
+      svg.appendChild(g);
+    });
+  }
+
+  function detailRows() {
+    var q = $('f-dq').value.trim().toLowerCase(), area = $('f-darea').value, stat = $('f-dstatus').value;
+    return (DATA.details || []).filter(function (d) {
+      if (area && d.area !== area) return false;
+      if (stat === 'attention' ? !(d.status === 'Different' || d.status === 'Missing in bank') : (stat && d.status !== stat)) return false;
+      return !q || (d.action + ' ' + d.bank_action + ' ' + d.reference + ' ' + d.bank + ' ' + d.note).toLowerCase().indexOf(q) >= 0;
+    });
+  }
+
+  function renderDetail() {
+    var S = DATA.detailSummary, body = $('detail-body'), sub = $('detail-sub');
+    if (!S || !S.available) {
+      body.hidden = true;
+      sub.textContent = DATA.details && DATA.details.length === 0 && S
+        ? 'Not compared: the bank file has no treatment, engagement-policy or contact-policy detail. Upload the bank’s Pega action catalog export (.xlsx) to compare them. Pega When rules are not part of the catalog export and are not compared.'
+        : 'Run a scan with the bank’s Pega action catalog export (.xlsx) to compare treatments, engagement policies and contact policies for each matched action.';
+      return;
+    }
+    body.hidden = false;
+    sub.textContent = 'For the ' + S.comparedPairs + ' matched actions: do the treatments (channels and content), the eligibility, suitability and applicability rules, and the contact policies line up? Rules are matched by customer field. Pega When rules are not part of the catalog export and are not compared.';
+    chartDetail(S);
+    var rows = detailRows();
+    table($('tb-detail'), [
+      { key: 'action', label: 'Reference action' },
+      { key: 'bank_action', label: 'Bank action' },
+      { key: 'area', label: 'Area', render: function (r) { return el('span', { class: 'pill' }, r.area); } },
+      { key: 'status', label: 'Result', render: function (r) {
+          var sp = el('span', { class: 'st' }), i = el('i'); i.style.background = DCOLOR[r.status];
+          sp.appendChild(i); sp.appendChild(document.createTextNode(r.status)); return sp; } },
+      { key: 'reference', label: 'Reference' },
+      { key: 'bank', label: 'Bank' },
+      { key: 'note', label: 'Note' }
+    ], rows.slice(0, 400), false);
+    $('f-dcount').textContent = rows.length + ' of ' + DATA.details.length + ' checks' + (rows.length > 400 ? ' (first 400 shown; export for all)' : '');
+  }
+  $('export-detail').addEventListener('click', function () {
+    var cols = ['action_id', 'action', 'journey', 'bank_action', 'area', 'status', 'reference', 'bank', 'note'];
+    var lines = [cols.join(',')].concat(detailRows().map(function (r) { return cols.map(function (c) { return csvCell(r[c]); }).join(','); }));
+    var a = el('a', { href: URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' })), download: 'irea_gap_scan_rules_' + DATA.bank.replace(/\W+/g, '_') + '.csv' });
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  ['f-darea', 'f-dstatus'].forEach(function (id) { $(id).addEventListener('change', renderDetail); });
+  $('f-dq').addEventListener('input', renderDetail);
+
+  // ---------- export / load
+  function csvCell(v) { var s = v === null || v === undefined ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+  $('export').addEventListener('click', function () {
+    var cols = ['action_id', 'action', 'journey', 'pillar', 'coverage', 'bank_action', 'gap_note', 'scan_status', 'treat', 'missing_p10', 'missing_p50', 'missing_p90'];
+    var lines = [cols.join(',')].concat((state.view || []).map(function (r) { return cols.map(function (c) { return csvCell(r[c]); }).join(','); }));
+    var a = el('a', { href: URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' })), download: 'irea_gap_scan_' + DATA.bank.replace(/\W+/g, '_') + '.csv' });
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
+  function parseCSV(text) {
+    var rows = [], row = [], f = '', q = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (q) { if (ch === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += ch; }
+      else if (ch === '"') q = true;
+      else if (ch === ',') { row.push(f); f = ''; }
+      else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+      else f += ch;
+    }
+    if (f !== '' || row.length) { row.push(f); rows.push(row); }
+    var hdr = rows.shift();
+    return rows.filter(function (r) { return r.length > 1; }).map(function (r) {
+      var o = {}; hdr.forEach(function (h, j) { o[h.trim()] = r[j] === undefined ? '' : r[j]; }); return o;
+    });
+  }
+  $('load').addEventListener('click', function () { $('file').click(); });
+  $('file').addEventListener('change', function (ev) {
+    var file = ev.target.files[0];
+    if (!file) return;
+    file.text().then(function (text) {
+      var rows = parseCSV(text);
+      var need = ['action', 'journey', 'pillar', 'coverage', 'scan_status', 'value_p50_usd'];
+      var miss = need.filter(function (k) { return !rows.length || !(k in rows[0]); });
+      if (miss.length) { alert('This CSV is missing columns: ' + miss.join(', ') + '. Use dashboard_gap_actions.csv from apply_review.py.'); return; }
+      DATA.actions = rows; DATA.bankOnly = [];
+      var name = prompt('Bank name for this scan?', file.name.replace(/\.csv$/i, ''));
+      if (name) DATA.bank = name;
+      DATA.synthetic = false;
+      DATA.scanDate = new Date().toISOString().slice(0, 10);
+      $('f-journey').replaceChildren(el('option', { value: '' }, 'All journeys'));
+      render();
+    });
+  });
+  $('print').addEventListener('click', function () { window.print(); });
+  $('share').addEventListener('change', function (ev) { state.share = Number(ev.target.value); render(); });
+  ['f-journey', 'f-cov', 'f-tier'].forEach(function (id) { $(id).addEventListener('change', render); });
+  $('f-q').addEventListener('input', render);
+
+  // ---------- render
+  var lastW = 0, timer = null;
+  function render() {
+    var M = model();
+    renderHead(M); chartValue(M); chartCoverage(M); chartTier(M); renderTables(M); renderDetail();
+    lastW = window.innerWidth;
+  }
+  window.addEventListener('resize', function () {
+    clearTimeout(timer);
+    timer = setTimeout(function () { if (window.innerWidth !== lastW) render(); }, 150);
+  });
+  window.addEventListener('beforeprint', render);
+
+  // Called by gap-scan.html (the site shell) with a finished scan from
+  // js/gap-scan-engine.js: same shape as the embedded sample DATA above.
+  window.loadScanData = function (d) {
+    DATA = d;
+    $('f-journey').replaceChildren(el('option', { value: '' }, 'All journeys'));
+    ['f-cov', 'f-tier', 'f-darea'].forEach(function (id) { $(id).value = ''; });
+    $('f-dstatus').value = 'attention'; $('f-dq').value = '';
+    $('f-q').value = '';
+    render();
+  };
+  render();
+})();
+</script>
+</body>
+</html>

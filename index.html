@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="refresh" content="0; url=browse.html" />
+<title>Instellars</title>
+<script src="js/data.js"></script>
+<script src="js/session.js"></script>
+<script>
+  // If someone's already logged in this session, skip straight to the
+  // dashboard instead of the anonymous browsing experience.
+  const session = loadSession();
+  if (getCustomerFromSession(session)) {
+    window.location.replace("dashboard.html");
+  } else {
+    window.location.replace("browse.html");
+  }
+</script>
+</head>
+<body></body>
+</html>

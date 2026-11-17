@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instellars — Banking, Simplified</title>
+<link rel="stylesheet" href="css/app.css" />
+<style>
+  .bnk-browse-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.1rem 2rem; border-bottom: 1px solid var(--rule); gap: 1.5rem; flex-wrap: wrap;
+  }
+  .bnk-browse-nav-links { display: flex; align-items: center; gap: 1.6rem; flex: 1; }
+  .bnk-browse-nav-link { background: none; border: none; cursor: pointer; font-family: inherit; color: var(--ink-soft); font-size: 0.88rem; padding: 0; }
+  .bnk-browse-nav-link:hover { color: var(--ink); }
+  .bnk-nav-dropdown { position: relative; }
+  .bnk-nav-dropdown-trigger { display: flex; align-items: center; gap: 0.3rem; background: none; border: none; cursor: pointer; font-family: inherit; color: var(--ink-soft); font-size: 0.88rem; padding: 0; }
+  .bnk-nav-dropdown-trigger:hover { color: var(--ink); }
+  .bnk-nav-dropdown-trigger svg { transition: transform 0.15s; }
+  .bnk-nav-dropdown.open .bnk-nav-dropdown-trigger { color: var(--ink); }
+  .bnk-nav-dropdown.open .bnk-nav-dropdown-trigger svg { transform: rotate(180deg); }
+  .bnk-nav-dropdown-panel {
+    position: absolute; top: calc(100% + 0.9rem); left: -0.5rem; background: var(--white);
+    border: 1px solid var(--rule); border-radius: 10px; box-shadow: 0 12px 28px rgba(14,18,48,0.14);
+    min-width: 240px; padding: 0.5rem; z-index: 30; display: none;
+  }
+  .bnk-nav-dropdown.open .bnk-nav-dropdown-panel { display: block; }
+  .bnk-nav-dropdown-item {
+    display: flex; align-items: center; gap: 0.7rem; width: 100%; text-align: left; background: none; border: none;
+    cursor: pointer; font-family: inherit; color: var(--ink); font-size: 0.86rem; padding: 0.6rem 0.7rem; border-radius: 6px;
+  }
+  .bnk-nav-dropdown-item:hover { background: var(--paper); }
+  .bnk-nav-dropdown-item-icon { flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px; background: var(--brass-soft); color: #1E40AF; display: flex; align-items: center; justify-content: center; }
+  .bnk-browse-header-actions { display: flex; align-items: center; gap: 0.6rem; }
+  .bnk-browse-icon-btn { background: none; border: none; cursor: pointer; color: var(--ink-soft); padding: 0.4rem; display: flex; }
+  .bnk-browse-products {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1.25rem; padding: 2rem; max-width: 1100px; margin: 0 auto;
+  }
+  .bnk-browse-product-icon {
+    width: 44px; height: 44px; border-radius: 50%; background: var(--brass-soft);
+    color: #1E40AF; display: flex; align-items: center; justify-content: center;
+    margin-bottom: 0.9rem;
+  }
+  .bnk-browse-cta-banner {
+    background: linear-gradient(135deg, var(--ink), #1c2560); color: var(--paper);
+    border-radius: 8px; padding: 1.6rem 2rem; max-width: 1100px; margin: 0 auto 2rem;
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  }
+  .bnk-browse-product-clickable { cursor: pointer; transition: border-color 0.15s; }
+  .bnk-browse-product-clickable:hover { border-color: var(--brass); }
+  .bnk-browse-loan-image { width: 100%; height: 150px; border-radius: 4px; margin-bottom: 0.9rem; overflow: hidden; }
+
+  /* Hero: boxed gradient card, eyebrow + headline + illustration */
+  .bnk-hero-box-wrap { max-width: 1200px; margin: 1.2rem auto 0; padding: 0 2rem; }
+  .bnk-hero-box {
+    background: linear-gradient(135deg, var(--ink), #1c2560 60%, #2a2e6e); color: var(--paper);
+    border-radius: 14px; padding: 1.5rem 1.7rem; position: relative; overflow: hidden;
+  }
+  .bnk-hero-box::before {
+    content: ""; position: absolute; top: -40%; right: -10%; width: 60%; height: 180%;
+    background: radial-gradient(circle, rgba(37,99,235,0.35), transparent 70%); pointer-events: none;
+  }
+  .bnk-hero-section { display: grid; grid-template-columns: 1fr 260px; gap: 1.2rem; align-items: center; position: relative; }
+  .bnk-hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 0.35rem; background: rgba(237,239,242,0.12);
+    border: 1px solid rgba(237,239,242,0.2); color: var(--paper); font-size: 0.6rem; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; padding: 0.25rem 0.6rem; border-radius: 20px; margin-bottom: 0.6rem;
+  }
+  .bnk-hero-headline {
+    font-size: 1.6rem; line-height: 1.12; letter-spacing: -0.01em; margin-bottom: 0.5rem; color: var(--paper);
+  }
+  .bnk-hero-illustration { width: 100%; height: auto; }
+
+  /* Security/hotline alert banner */
+  .bnk-alert-banner {
+    max-width: 1200px; margin: 1.4rem auto 0; padding: 0 2rem;
+  }
+  .bnk-alert-banner-inner {
+    background: #FBEAE7; border: 1px solid #EFC9C1; border-radius: 12px; padding: 1.2rem 1.6rem;
+    display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap;
+  }
+  .bnk-alert-icon { flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%; background: #F3D3CC; color: var(--danger); display: flex; align-items: center; justify-content: center; }
+  .bnk-alert-body { flex: 1; min-width: 240px; }
+  .bnk-alert-title { font-weight: 700; font-size: 0.95rem; color: var(--ink); margin-bottom: 0.2rem; }
+  .bnk-alert-desc { font-size: 0.85rem; color: var(--ink-soft); line-height: 1.5; }
+  .bnk-alert-desc b { color: var(--danger); font-family: 'IBM Plex Mono', monospace; }
+  .bnk-alert-cta {
+    flex-shrink: 0; background: var(--danger); color: var(--white); text-decoration: none; font-weight: 600;
+    font-size: 0.85rem; padding: 0.6rem 1.1rem; border-radius: 8px; display: inline-flex; align-items: center; gap: 0.4rem;
+  }
+
+  /* Segment cards */
+  .bnk-segments-wrap { max-width: 1200px; margin: 2.6rem auto 0; padding: 0 2rem; }
+  .bnk-segments-heading { font-size: 1.4rem; margin-bottom: 1.2rem; }
+  .bnk-segments-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.25rem; }
+  .bnk-segment-card {
+    background: var(--white); border: 1px solid var(--rule); border-radius: 8px; padding: 1.15rem; text-decoration: none; display: block;
+    box-shadow: 0 1px 4px -1px rgba(14,18,48,0.14);
+    transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .bnk-segment-card:hover { border-color: var(--brass); transform: translateY(-2px); box-shadow: 0 10px 22px -10px rgba(14,18,48,0.26); }
+  .bnk-segment-card:hover .bnk-segment-icon { transform: scale(1.06); }
+  .bnk-segment-icon {
+    width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 0.8rem;
+    box-shadow: inset 0 0 0 1px rgba(14,18,48,0.06), 0 3px 8px -3px rgba(14,18,48,0.22);
+    transition: transform 0.18s ease;
+  }
+  .bnk-segment-eyebrow { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.25rem; }
+  .bnk-segment-title { font-size: 1.02rem; color: var(--ink); margin-bottom: 0.4rem; }
+  .bnk-segment-desc { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.45; margin-bottom: 0.8rem; }
+  .bnk-segment-stat { font-family: 'IBM Plex Mono', monospace; font-size: 0.74rem; font-weight: 600; color: var(--ink); border-top: 1px dashed var(--rule); padding-top: 0.6rem; }
+
+  .bnk-advisory-list { display: flex; flex-direction: column; gap: 0.7rem; }
+  .bnk-advisory-item { background: var(--white); border: 1px solid var(--rule); border-radius: 8px; padding: 0.9rem 1.1rem; display: flex; align-items: flex-start; gap: 1rem; }
+  .bnk-advisory-tag { flex-shrink: 0; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; padding: 0.2rem 0.55rem; border-radius: 20px; white-space: nowrap; }
+  .bnk-advisory-body { flex: 1; min-width: 0; }
+  .bnk-advisory-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.8rem; flex-wrap: wrap; margin-bottom: 0.2rem; }
+  .bnk-advisory-title { font-weight: 600; font-size: 0.88rem; color: var(--ink); }
+  .bnk-advisory-date { font-size: 0.72rem; color: var(--ink-soft); flex-shrink: 0; font-family: 'IBM Plex Mono', monospace; }
+  .bnk-advisory-desc { font-size: 0.8rem; color: var(--ink-soft); line-height: 1.5; }
+
+  /* Footer */
+  .bnk-browse-footer { margin-top: 3rem; }
+  .bnk-trust-bar {
+    background: var(--ink); color: var(--paper); padding: 1.2rem 2rem;
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  }
+  .bnk-trust-bar-inner { max-width: 1200px; margin: 0 auto; width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .bnk-trust-badge { display: flex; align-items: center; gap: 0.9rem; }
+  .bnk-trust-badge-mark { flex-shrink: 0; width: 40px; height: 40px; border-radius: 6px; background: rgba(237,239,242,0.12); border: 1px solid rgba(237,239,242,0.25); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.03em; }
+  .bnk-trust-badge-text { font-size: 0.8rem; opacity: 0.85; line-height: 1.5; max-width: 640px; }
+  .bnk-trust-badge-text b { display: block; font-size: 0.88rem; opacity: 1; margin-bottom: 0.15rem; }
+  .bnk-footer-main { background: #08091c; color: rgba(237,239,242,0.75); padding: 2.6rem 2rem 1.6rem; }
+  .bnk-footer-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr; gap: 2rem; }
+  .bnk-footer-brand-blurb { font-size: 0.82rem; line-height: 1.6; margin: 0.9rem 0 1.1rem; max-width: 34ch; opacity: 0.8; }
+  .bnk-footer-contact-row { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; margin-bottom: 0.5rem; opacity: 0.85; }
+  .bnk-footer-cookie-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem; background: rgba(237,239,242,0.08); border: 1px solid rgba(237,239,242,0.25);
+    color: var(--paper); font-family: inherit; font-size: 0.76rem; padding: 0.45rem 0.8rem; border-radius: 6px; cursor: pointer; margin-top: 0.7rem;
+  }
+  .bnk-footer-cookie-btn:hover { background: rgba(237,239,242,0.16); }
+  .bnk-footer-col-title { color: var(--paper); font-weight: 600; font-size: 0.82rem; margin-bottom: 0.9rem; letter-spacing: 0.02em; }
+  .bnk-footer-link-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+  .bnk-footer-link-list a { color: rgba(237,239,242,0.7); text-decoration: none; font-size: 0.82rem; }
+  .bnk-footer-link-list a:hover { color: var(--paper); }
+  .bnk-footer-bottom { border-top: 1px solid rgba(237,239,242,0.12); max-width: 1200px; margin: 1.8rem auto 0; padding-top: 1.2rem; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: 0.76rem; opacity: 0.55; }
+  .bnk-footer-bottom a { color: inherit; text-decoration: none; margin-left: 1.2rem; }
+  .bnk-footer-bottom a:hover { opacity: 0.85; }
+
+  @media (max-width: 860px) {
+    .bnk-hero-section { grid-template-columns: 1fr; }
+    .bnk-hero-box { padding: 1.3rem 1.2rem; border-radius: 12px; }
+    .bnk-hero-headline { font-size: 1.4rem; }
+    .bnk-hero-illustration { max-width: 220px; margin: 1rem auto 0; }
+    .bnk-browse-nav-links { order: 3; width: 100%; justify-content: center; padding-top: 0.6rem; border-top: 1px solid var(--rule); }
+    .bnk-footer-grid { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 480px) {
+    .bnk-browse-icon-btn { display: none; }
+  }
+</style>
+</head>
+<body>
+<div id="app" class="bnk-root"></div>
+
+<script src="js/data.js"></script>
+<script src="js/cdh.js"></script>
+<script src="js/session.js"></script>
+<script src="js/behavioral.js"></script>
+<script>
+  // Anonymous visitors get a cookie id the moment they land here, before
+  // they've identified themselves — this is what later gets tied to their
+  // real customer id via IDMerge once they log in.
+  getOrCreateAnonymousCookieId();
+
+  const PRODUCTS = [
+    { icon: "landmark", title: "Borrow", desc: "Competitive rates on personal loans, with funds available as soon as the next business day once approved.", onClick: "showLoanOffers()" },
+    { icon: "creditCard", title: "Credit Cards", desc: "From everyday rewards to premium travel perks — find a card that matches how you spend." },
+    { icon: "shieldCheck", title: "Savings Accounts", desc: "Grow your balance with a high-yield savings account and zero monthly maintenance fees." },
+    { icon: "trendingUp", title: "Time Deposits", desc: "Lock in a fixed rate for a term that works for you, with guaranteed returns at maturity." },
+  ];
+
+  // Three ways to bank with Instellars — a segment-picker pattern common on
+  // real bank homepages, distinct from the product grid above (that's
+  // "what you can get"; this is "which relationship fits you").
+  const SEGMENTS = [
+    { icon: "smartphone", eyebrow: "Personal Banking", eyebrowColor: "#1E40AF", iconBg: "#DBEAFE", iconColor: "#1E40AF", cardBg: "linear-gradient(150deg, #EAF2FF, #D3E4FE)", title: "Everyday banking", desc: "Checking, savings, cards, and loans for your day-to-day life — all in one app.", stat: "0 monthly fees on core accounts" },
+    { icon: "briefcase", eyebrow: "Business Banking", eyebrowColor: "#2B5940", iconBg: "#DCEEE2", iconColor: "#2B5940", cardBg: "linear-gradient(150deg, #EDF7F0, #D3EADA)", title: "Built for your business", desc: "Multi-account management, payroll-ready transfers, and dedicated support as you grow.", stat: "48hr account opening" },
+    { icon: "trendingUp", eyebrow: "Preferred Wealth", eyebrowColor: "#5B21B6", iconBg: "#EDE7FB", iconColor: "#5B21B6", cardBg: "linear-gradient(150deg, #F3EFFC, #E3D9F8)", title: "Preferred wealth management", desc: "Portfolio guidance and priority service from a dedicated relationship team.", stat: "Dedicated advisor, always on" },
+  ];
+
+  // A handful of general bank notices — deliberately not offers or CDH
+  // decisions, just static institutional communications, the way a real
+  // bank homepage separates "things we're personally recommending you"
+  // from "things everyone should know."
+  const ADVISORIES = [
+    { tag: "Security", tagColor: "var(--danger)", tagBg: "#FBEAE7", date: "Aug 10, 2026", title: "Stay alert to phishing scams", desc: "Instellars will never ask for your OTP, password, or CVV over phone, SMS, or email. Report suspicious messages to our fraud team immediately." },
+    { tag: "Product Update", tagColor: "#1E40AF", tagBg: "#DBEAFE", date: "Aug 6, 2026", title: "New Fixed Term Time Deposit rates now in effect", desc: "Promotional rates for 6-month and 12-month terms have increased. Log in to see the rate that applies to you." },
+    { tag: "Notice", tagColor: "#2B5940", tagBg: "#DCEEE2", date: "Jul 28, 2026", title: "Scheduled maintenance, Aug 24", desc: "Online and mobile banking will be briefly unavailable from 12:00 AM to 1:00 AM SGT for scheduled system maintenance." },
+    { tag: "Notice", tagColor: "var(--ink-soft)", tagBg: "var(--paper)", date: "Jul 15, 2026", title: "Branch hours during the upcoming public holiday", desc: "All branches will be closed; digital banking, cards, and the 24/7 hotline remain fully available throughout." },
+  ];
+
+  // A curated subset of the full offer catalog — genuine standalone loan
+  // products a prospective (not-yet-a-customer) visitor could reasonably
+  // browse. Deliberately excludes journey-narrative-only catalog entries
+  // like "Loan Disbursement Confirmation", which only make sense mid-way
+  // through an existing customer's journey ("your loan HAS been
+  // disbursed"), not as a product a first-time visitor would browse.
+  // "Lost Card Replacement" is included on request even though it's an
+  // existing-customer servicing action rather than a loan product — shown
+  // here as a general Instellars offering a visitor can browse.
+  // "Lifestyle Card Recommendation" is a genuine fit for anonymous
+  // browsing (Prospect-stage card product, not tied to an existing account).
+  // One representative, standalone-browsable offer per major product line —
+  // deliberately picked to avoid journey-narrative-only entries that only
+  // make sense mid-way through an existing customer's journey (e.g.
+  // fd-maturity-reinvestment assumes an FD you already hold), same
+  // reasoning already documented on PERSONAL_LOAN_OFFER_IDS below.
+  const HOME_CURRENT_OFFER_IDS = ["pre-approved-loan-offer", "lifestyle-card-recommendation", "hy-savings", "time-deposit-standalone"];
+
+  const PERSONAL_LOAN_OFFER_IDS = ["personal-loan", "pre-approved-loan-offer", "personal-loan-offer", "festive-rate-offer", "loan-topup-refinance", "easy-credit", "flexi-loan", "credit-hacks", "lost-card-replacement", "lifestyle-card-recommendation"];
+
+  const HERO_ILLUSTRATION_SVG = `<svg viewBox="0 0 500 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Illustration of a mobile banking app surrounded by a geometric triangle pattern">   <g transform="translate(30,60)">     <polygon points="0,0 0,40 46,20.0" fill="#93C5FD" opacity="0.98"/> <polygon points="92,0 92,40 46,20.0" fill="#DBEAFE" opacity="0.84"/> <polygon points="92,0 92,40 138,20.0" fill="#0E1230" opacity="0.92"/> <polygon points="184,0 184,40 138,20.0" fill="#0E1230" opacity="0.71"/> <polygon points="184,0 184,40 230,20.0" fill="#0E1230" opacity="0.96"/> <polygon points="276,0 276,40 230,20.0" fill="#2563EB" opacity="0.57"/> <polygon points="276,0 276,40 322,20.0" fill="#DBEAFE" opacity="0.74"/> <polygon points="368,0 368,40 322,20.0" fill="#2563EB" opacity="0.59"/> <polygon points="46,40 46,80 0,60.0" fill="#DBEAFE" opacity="0.58"/> <polygon points="46,40 46,80 92,60.0" fill="#0E1230" opacity="0.98"/> <polygon points="138,40 138,80 92,60.0" fill="#0E1230" opacity="0.81"/> <polygon points="138,40 138,80 184,60.0" fill="#DBEAFE" opacity="0.57"/> <polygon points="230,40 230,80 184,60.0" fill="#2563EB" opacity="0.57"/> <polygon points="230,40 230,80 276,60.0" fill="#2563EB" opacity="0.68"/> <polygon points="322,40 322,80 276,60.0" fill="#2563EB" opacity="0.79"/> <polygon points="322,40 322,80 368,60.0" fill="#93C5FD" opacity="0.8"/> <polygon points="0,80 0,120 46,100.0" fill="#2563EB" opacity="0.6"/> <polygon points="92,80 92,120 46,100.0" fill="#2563EB" opacity="0.72"/> <polygon points="92,80 92,120 138,100.0" fill="#0E1230" opacity="0.8"/> <polygon points="184,80 184,120 138,100.0" fill="#2563EB" opacity="0.77"/> <polygon points="184,80 184,120 230,100.0" fill="#DBEAFE" opacity="0.9"/> <polygon points="276,80 276,120 230,100.0" fill="#DBEAFE" opacity="0.81"/> <polygon points="276,80 276,120 322,100.0" fill="#DBEAFE" opacity="0.71"/> <polygon points="368,80 368,120 322,100.0" fill="#2563EB" opacity="0.91"/> <polygon points="46,120 46,160 0,140.0" fill="#2563EB" opacity="0.59"/> <polygon points="46,120 46,160 92,140.0" fill="#93C5FD" opacity="0.79"/> <polygon points="138,120 138,160 92,140.0" fill="#93C5FD" opacity="0.88"/> <polygon points="138,120 138,160 184,140.0" fill="#93C5FD" opacity="0.82"/> <polygon points="230,120 230,160 184,140.0" fill="#0E1230" opacity="0.6"/> <polygon points="230,120 230,160 276,140.0" fill="#DBEAFE" opacity="0.62"/> <polygon points="322,120 322,160 276,140.0" fill="#93C5FD" opacity="0.62"/> <polygon points="322,120 322,160 368,140.0" fill="#DBEAFE" opacity="0.74"/> <polygon points="0,160 0,200 46,180.0" fill="#0E1230" opacity="0.89"/> <polygon points="92,160 92,200 46,180.0" fill="#93C5FD" opacity="0.7"/> <polygon points="92,160 92,200 138,180.0" fill="#93C5FD" opacity="0.82"/> <polygon points="184,160 184,200 138,180.0" fill="#DBEAFE" opacity="0.58"/> <polygon points="184,160 184,200 230,180.0" fill="#0E1230" opacity="0.98"/> <polygon points="276,160 276,200 230,180.0" fill="#DBEAFE" opacity="0.86"/> <polygon points="276,160 276,200 322,180.0" fill="#0E1230" opacity="0.58"/> <polygon points="368,160 368,200 322,180.0" fill="#93C5FD" opacity="0.84"/> <polygon points="46,200 46,240 0,220.0" fill="#DBEAFE" opacity="0.68"/> <polygon points="46,200 46,240 92,220.0" fill="#DBEAFE" opacity="0.95"/> <polygon points="138,200 138,240 92,220.0" fill="#93C5FD" opacity="0.56"/> <polygon points="138,200 138,240 184,220.0" fill="#DBEAFE" opacity="0.71"/> <polygon points="230,200 230,240 184,220.0" fill="#0E1230" opacity="0.77"/> <polygon points="230,200 230,240 276,220.0" fill="#2563EB" opacity="0.9"/> <polygon points="322,200 322,240 276,220.0" fill="#2563EB" opacity="0.88"/> <polygon points="322,200 322,240 368,220.0" fill="#DBEAFE" opacity="0.73"/>   </g>   <g transform="translate(165,60)" filter="url(#phoneShadow)">     <rect x="0" y="0" width="170" height="300" rx="22" fill="#FFFFFF" stroke="#0E1230" stroke-width="3"/>     <rect x="14" y="20" width="142" height="36" rx="8" fill="#0E1230"/>     <text x="85.0" y="43" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#FFFFFF">Instellars</text>     <rect x="14" y="70" width="142" height="70" rx="10" fill="#2563EB"/>     <text x="26" y="94" font-family="Arial, sans-serif" font-size="9" fill="#DBEAFE" letter-spacing="0.5">AVAILABLE BALANCE</text>     <text x="26" y="120" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#FFFFFF">$4,285.10</text>     <rect x="14" y="152" width="66.0" height="34" rx="8" fill="#F1F5F9"/>     <rect x="90.0" y="152" width="66.0" height="34" rx="8" fill="#F1F5F9"/>     <circle cx="32" cy="169" r="7" fill="#2563EB"/>     <circle cx="108.0" cy="169" r="7" fill="#2563EB"/>     <rect x="14" y="200" width="142" height="1" fill="#E5E7EB"/>     <circle cx="28" cy="222" r="10" fill="#DBEAFE"/>     <rect x="46" y="216" width="70" height="6" rx="3" fill="#0E1230" opacity="0.75"/>     <rect x="46" y="226" width="45" height="5" rx="2.5" fill="#94A3B8"/>     <circle cx="28" cy="252" r="10" fill="#DBEAFE"/>     <rect x="46" y="246" width="85" height="6" rx="3" fill="#0E1230" opacity="0.75"/>     <rect x="46" y="256" width="45" height="5" rx="2.5" fill="#94A3B8"/>   </g>   <defs>     <filter id="phoneShadow" x="-30%" y="-20%" width="160%" height="140%">       <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0E1230" flood-opacity="0.25"/>     </filter>   </defs> </svg>`;
+
+  let showingLoans = false;
+
+  // The container call is only meant to happen once per visit — without
+  // this guard, clicking Borrow, going Back, and clicking Borrow again
+  // would fire it again each time, since showLoanOffers() runs fresh on
+  // every click.
+  let borrowContainerFetched = false;
+
+  // Live log of every Pega call this page makes, populated by the optional
+  // window.__apiDebugLog hook that js/cdh.js and js/behavioral.js call into
+  // (harmlessly a no-op on every other page, since only this one defines
+  // it). Each call logs both a "pending" line when it starts and a
+  // "success"/"failed" line when it resolves, kept as separate rows rather
+  // than updated in place — so the full sequence of what happened, and in
+  // what order, stays visible rather than just the final outcome. The
+  // "pending" line also carries the actual request payload, exactly as
+  // built right before the fetch call — not a reconstruction of it.
+  let apiDebugLog = [];
+  window.__apiDebugLog = function (name, status, detail, payload) {
+    apiDebugLog.unshift({ name, status, detail, payload, time: new Date().toLocaleTimeString() });
+    if (apiDebugLog.length > 30) apiDebugLog.length = 30;
+    render();
+  };
+
+  function renderApiDebugPanel() {
+    if (apiDebugLog.length === 0) return "";
+    const rows = apiDebugLog.map(entry => {
+      const statusColor = entry.status === "success" ? "#16a34a" : entry.status === "failed" ? "#dc2626" : "#9a7b1f";
+      const statusLabel = entry.status === "success" ? "Success" : entry.status === "failed" ? "Failed — fallback used" : "Pending…";
+      const payloadHtml = entry.payload
+        ? `<pre style="margin:0.5rem 0 0;padding:0.6rem 0.7rem;background:var(--bg);border-radius:6px;font-size:0.72rem;line-height:1.45;overflow-x:auto;white-space:pre-wrap;word-break:break-word;">${JSON.stringify(entry.payload, null, 2)}</pre>`
+        : "";
+      return `
+        <div style="padding:0.6rem 0;border-bottom:1px solid var(--rule);">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;">
+            <div style="min-width:0;">
+              <div style="font-weight:600;font-size:0.85rem;">${entry.name}</div>
+              <div style="font-size:0.78rem;color:var(--ink-soft);">${entry.detail}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              <div style="font-weight:600;font-size:0.8rem;color:${statusColor};">${statusLabel}</div>
+              <div style="font-size:0.72rem;color:var(--ink-soft);">${entry.time}</div>
+            </div>
+          </div>
+          ${payloadHtml}
+        </div>`;
+    }).join("");
+    return `
+      <div style="max-width:1100px;margin:0 auto 2rem;padding:0 2rem;">
+        <div class="bnk-card" style="padding:1.3rem;">
+          <div class="bnk-display" style="font-size:1.05rem;margin-bottom:0.3rem;">API debug log</div>
+          <div style="font-size:0.8rem;color:var(--ink-soft);margin-bottom:0.4rem;">Live status of the Pega calls this page makes — shows whether each one actually succeeded or fell back.</div>
+          ${rows}
+        </div>
+      </div>`;
+  }
+
+  function showLoanOffers() {
+    showingLoans = true;
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (!borrowContainerFetched) {
+      borrowContainerFetched = true;
+      fetchAnonymousBorrowContainer();
+    }
+  }
+
+  function showMainBrowse() {
+    showingLoans = false;
+    render();
+  }
+
+  // Lets a visitor actually see their own anonymous cookie id, since it
+  // otherwise only lives in localStorage and in outgoing request payloads —
+  // neither of which is something most people can casually inspect. Uses
+  // the same id already sent as ExternalID/SecondaryID elsewhere, so
+  // whatever's in this file is exactly what those calls are using.
+  function downloadCookieId() {
+    const cookieId = getOrCreateAnonymousCookieId();
+    const blob = new Blob([cookieId], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "instellars-cookie-id.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  // Simple click-to-toggle dropdown (not hover-based, since hover doesn't
+  // work well on touch devices) — closes automatically on an outside
+  // click or after picking an item, via the document-level listener below.
+  function togglePersonalBankingMenu(event) {
+    event.stopPropagation();
+    document.getElementById("personalBankingMenu")?.classList.toggle("open");
+  }
+  document.addEventListener("click", (event) => {
+    const menu = document.getElementById("personalBankingMenu");
+    if (menu && !menu.contains(event.target)) {
+      menu.classList.remove("open");
+    }
+  });
+
+  function renderFooter() {
+    return `
+      <div class="bnk-browse-footer">
+        <div class="bnk-trust-bar">
+          <div class="bnk-trust-bar-inner">
+            <div class="bnk-trust-badge">
+              <div class="bnk-trust-badge-mark">NDGS</div>
+              <div class="bnk-trust-badge-text">
+                <b>Protected by the National Deposit Guarantee Scheme</b>
+                Eligible deposits are insured up to $250,000 per depositor, per member institution, by law.
+              </div>
+            </div>
+            <a class="bnk-btn-primary" style="flex-shrink:0;text-decoration:none;padding:0.6rem 1.2rem;" href="login.html">${icon("logOut", 14)} Log in to your account</a>
+          </div>
+        </div>
+        <div class="bnk-footer-main">
+          <div class="bnk-footer-grid">
+            <div>
+              <div class="bnk-brand" style="margin-bottom:0;color:var(--paper);">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+              <p class="bnk-footer-brand-blurb">Instellars is a digital-first retail bank offering personal banking, business banking, and preferred wealth management, built on real-time, personalized decisioning.</p>
+              <div class="bnk-footer-contact-row">${icon("phone", 14)} Consumer Call Centre: <b style="color:var(--paper);font-family:'IBM Plex Mono',monospace;">1-800-555-0142</b></div>
+              <div class="bnk-footer-contact-row">${icon("mail", 14)} support@instellars.example</div>
+              <div class="bnk-footer-contact-row">${icon("landmark", 14)} 1 Instellars Plaza, Suite 400</div>
+              <button onclick="downloadCookieId()" class="bnk-footer-cookie-btn">${icon("send", 13)} Download cookie ID</button>
+            </div>
+            <div>
+              <div class="bnk-footer-col-title">Products &amp; Services</div>
+              <ul class="bnk-footer-link-list">
+                <li><a href="javascript:void(0)" onclick="showLoanOffers()">Borrow</a></li>
+                <li><a href="login.html">Credit Cards</a></li>
+                <li><a href="login.html">Savings Accounts</a></li>
+                <li><a href="login.html">Time Deposits</a></li>
+              </ul>
+            </div>
+            <div>
+              <div class="bnk-footer-col-title">Banking Segments</div>
+              <ul class="bnk-footer-link-list">
+                <li><a href="#segments">Everyday Banking</a></li>
+                <li><a href="#segments">Business Accounts</a></li>
+                <li><a href="#segments">Wealth Management</a></li>
+                <li><a href="login.html">Personal Financing</a></li>
+              </ul>
+            </div>
+            <div>
+              <div class="bnk-footer-col-title">Help &amp; Support</div>
+              <ul class="bnk-footer-link-list">
+                <li><a href="#hotline">Security &amp; Fraud Alerts</a></li>
+                <li><a href="login.html">Report a Lost Card</a></li>
+                <li><a href="#" onclick="return false;">Terms &amp; Conditions</a></li>
+                <li><a href="#" onclick="return false;">Privacy Statement</a></li>
+              </ul>
+            </div>
+          </div>
+          <div class="bnk-footer-bottom">
+            <span>© 2026 Instellars Bank. This is a demo application built to showcase Pega Customer Decision Hub — not a real bank.</span>
+            <span><a href="#" onclick="return false;">Terms of Use</a><a href="#" onclick="return false;">Privacy Statement</a><a href="#" onclick="return false;">Security Tips</a></span>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  function renderBrowseHeader() {
+    const personalMenuHtml = PRODUCTS.map(p => `
+      <button class="bnk-nav-dropdown-item" onclick="${p.onClick || "window.location.href='login.html'"}">
+        <span class="bnk-nav-dropdown-item-icon">${icon(p.icon, 15)}</span>
+        <span>${p.title}</span>
+      </button>`).join("");
+
+    return `
+      <div class="bnk-browse-header">
+        <div class="bnk-brand" style="margin-bottom:0;color:var(--ink);">${icon("landmark", 22)}<span class="bnk-brand-word">Instellars</span></div>
+        <div class="bnk-browse-nav-links">
+          <div class="bnk-nav-dropdown" id="personalBankingMenu">
+            <button class="bnk-nav-dropdown-trigger" onclick="togglePersonalBankingMenu(event)">Personal Banking ${icon("chevronDown", 14)}</button>
+            <div class="bnk-nav-dropdown-panel">${personalMenuHtml}</div>
+          </div>
+          <button class="bnk-browse-nav-link" onclick="document.getElementById('segments')?.scrollIntoView({behavior:'smooth'})">Business Banking</button>
+          <button class="bnk-browse-nav-link" onclick="document.querySelector('.bnk-browse-footer')?.scrollIntoView({behavior:'smooth'})">Help &amp; Support</button>
+        </div>
+        <div class="bnk-browse-header-actions">
+          <button class="bnk-browse-icon-btn" onclick="return false;" aria-label="Search" title="Search (demo only)">${icon("search", 18)}</button>
+          <a class="bnk-btn-primary" style="flex:none;padding:0.55rem 1.3rem;text-decoration:none;" href="login.html">Log in</a>
+        </div>
+      </div>`;
+  }
+
+  function renderLoanOffers() {
+    const offers = PERSONAL_LOAN_OFFER_IDS.map(id => OFFER_CATALOG.find(o => o.id === id)).filter(Boolean);
+    const cardsHtml = offers.map(o => `
+      <div class="bnk-card">
+        <div class="bnk-browse-loan-image"><img src="${o.image}" alt="${o.title}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>
+        <div class="bnk-display" style="font-size:1.05rem;margin-bottom:0.4rem;">${o.title}</div>
+        <div style="font-size:0.85rem;color:var(--ink-soft);line-height:1.55;margin-bottom:1rem;flex:1;">${o.description}</div>
+        <a class="bnk-btn-primary" style="flex:none;padding:0.5rem 1rem;text-decoration:none;text-align:center;" href="login.html">Log in to apply</a>
+      </div>`).join("");
+
+    return `
+      ${renderBrowseHeader()}
+      <div style="max-width:1100px;margin:0 auto;padding:2rem 2rem 0;">
+        <button onclick="showMainBrowse()" style="background:none;border:none;cursor:pointer;font-family:inherit;color:var(--ink-soft);font-size:0.85rem;padding:0;margin-bottom:1rem;display:flex;align-items:center;gap:0.3rem;">${icon("chevronDown", 14)} Back</button>
+        <div class="bnk-display" style="font-size:1.9rem;line-height:1.2;max-width:640px;">Loan Offers</div>
+      </div>
+      <div class="bnk-browse-products">${cardsHtml}</div>
+      ${renderFooter()}`;
+  }
+
+  function renderBrowse() {
+    const segmentsHtml = SEGMENTS.map(s => `
+      <a class="bnk-segment-card" href="login.html" style="background:${s.cardBg};">
+        <div class="bnk-segment-icon" style="background:var(--white);color:${s.iconColor};">${icon(s.icon, 20)}</div>
+        <div class="bnk-segment-eyebrow" style="color:${s.eyebrowColor};">${s.eyebrow}</div>
+        <div class="bnk-display bnk-segment-title">${s.title}</div>
+        <div class="bnk-segment-desc">${s.desc}</div>
+        <div class="bnk-segment-stat">${s.stat}</div>
+      </a>`).join("");
+
+    const currentOffers = HOME_CURRENT_OFFER_IDS.map(id => OFFER_CATALOG.find(o => o.id === id)).filter(Boolean);
+    const currentOffersHtml = currentOffers.map(o => `
+      <div class="bnk-card">
+        <div class="bnk-browse-loan-image"><img src="${o.image}" alt="${o.title}" style="width:100%;height:100%;object-fit:cover;display:block;" /></div>
+        <div class="bnk-eyebrow-row"><span class="bnk-eyebrow">${o.category}</span></div>
+        <div class="bnk-display bnk-card-title">${o.title}</div>
+        <div class="bnk-card-desc">${o.description}</div>
+        <a class="bnk-btn-primary" style="text-decoration:none;text-align:center;" href="login.html">${o.cta || "Log in to apply"}</a>
+      </div>`).join("");
+
+    const advisoriesHtml = ADVISORIES.map(a => `
+      <div class="bnk-advisory-item">
+        <span class="bnk-advisory-tag" style="background:${a.tagBg};color:${a.tagColor};">${a.tag}</span>
+        <div class="bnk-advisory-body">
+          <div class="bnk-advisory-title-row">
+            <span class="bnk-advisory-title">${a.title}</span>
+            <span class="bnk-advisory-date">${a.date}</span>
+          </div>
+          <div class="bnk-advisory-desc">${a.desc}</div>
+        </div>
+      </div>`).join("");
+
+    return `
+      ${renderBrowseHeader()}
+
+      <div class="bnk-hero-box-wrap">
+        <div class="bnk-hero-box">
+          <div class="bnk-hero-section">
+            <div>
+              <div class="bnk-hero-eyebrow">${icon("shieldCheck", 12)} Instellars Banking</div>
+              <div class="bnk-display bnk-hero-headline">Banking that<br/>moves with you.</div>
+              <p style="font-size:0.82rem;color:rgba(237,239,242,0.8);max-width:400px;margin-top:0.3rem;line-height:1.5;">
+                Browse what Instellars offers — no account needed. Log in to see personalized rates, pre-approved offers, and recommendations built just for you.
+              </p>
+              <a class="bnk-btn-primary" style="display:inline-block;margin-top:0.9rem;padding:0.5rem 1rem;font-size:0.82rem;text-decoration:none;" href="login.html">Get started</a>
+            </div>
+            ${HERO_ILLUSTRATION_SVG.replace("<svg ", '<svg class="bnk-hero-illustration" ')}
+          </div>
+        </div>
+      </div>
+
+      <div class="bnk-alert-banner" id="hotline">
+        <div class="bnk-alert-banner-inner">
+          <div class="bnk-alert-icon">${icon("shieldCheck", 20)}</div>
+          <div class="bnk-alert-body">
+            <div class="bnk-alert-title">24/7 Lost Card &amp; Fraud Reporting Hotline</div>
+            <div class="bnk-alert-desc">If you suspect unauthorized transactions or a compromised login, call <b>1-800-555-0199</b> immediately, or report it once logged in.</div>
+          </div>
+          <a class="bnk-alert-cta" href="tel:18005550199">${icon("phone", 14)} Call 1-800-555-0199</a>
+        </div>
+      </div>
+
+      <div class="bnk-segments-wrap" id="new-to-instellars">
+        <div class="bnk-browse-cta-banner">
+          <div>
+            <div class="bnk-display" style="font-size:1.15rem;color:var(--paper);margin-bottom:0.3rem;">New to Instellars?</div>
+            <div style="font-size:0.85rem;color:rgba(237,239,242,0.8);max-width:520px;line-height:1.5;">
+              Don't have a relationship with us yet? Open a new deposit account or apply for a personal loan in just a couple of minutes — no branch visit required.
+            </div>
+          </div>
+          <div style="display:flex;gap:0.6rem;flex-wrap:wrap;flex-shrink:0;">
+            <a class="bnk-btn-primary" style="text-decoration:none;padding:0.6rem 1.2rem;" href="new-customer-application.html?product=account">${icon("piggyBank", 14)} Open a New Account</a>
+            <a class="bnk-btn-ghost" style="text-decoration:none;padding:0.6rem 1.2rem;background:rgba(237,239,242,0.1);color:var(--paper);border-color:rgba(237,239,242,0.3);" href="new-customer-application.html?product=loan">${icon("landmark", 14)} Apply for a Loan</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="bnk-segments-wrap" id="calculators" style="margin-top:1.5rem;">
+        <a href="calculators.html" style="text-decoration:none;color:inherit;max-width:1100px;margin:0 auto;background:var(--white);border:1px solid var(--rule);border-radius:8px;padding:1.1rem 1.3rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;box-shadow:0 1px 4px -1px rgba(14,18,48,0.14);">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--brass-soft);color:#1E40AF;display:flex;align-items:center;justify-content:center;flex-shrink:0;">${icon("trendingUp", 20)}</div>
+          <div style="flex:1;">
+            <div class="bnk-application-card-title">Plan it out first</div>
+            <div class="bnk-application-card-sub">Balance transfer, rewards, travel miles, EMI, personal loan, and home loan calculators — see the numbers before you apply.</div>
+          </div>
+          <span class="bnk-btn-ghost" style="flex:none;padding:0.55rem 1.1rem;">Try our calculators ${icon("chevronRight", 14)}</span>
+        </a>
+      </div>
+
+      <div class="bnk-segments-wrap" id="segments">
+        <div class="bnk-display bnk-segments-heading">How do you bank with us?</div>
+        <div class="bnk-segments-grid">${segmentsHtml}</div>
+      </div>
+
+      <div class="bnk-segments-wrap" id="current-offers" style="margin-top:2.6rem;">
+        <div class="bnk-display bnk-segments-heading">Current offers</div>
+        <div class="bnk-browse-products" style="padding:0;max-width:none;">${currentOffersHtml}</div>
+      </div>
+
+      <div class="bnk-segments-wrap" id="advisories" style="margin-top:2.6rem;">
+        <div class="bnk-display bnk-segments-heading">Latest advisories</div>
+        <div class="bnk-advisory-list">${advisoriesHtml}</div>
+      </div>
+
+      ${renderFooter()}`;
+  }
+
+  function render() {
+    document.getElementById("app").innerHTML = (showingLoans ? renderLoanOffers() : renderBrowse()) + renderApiDebugPanel();
+  }
+
+  render();
+</script>
+</body>
+</html>

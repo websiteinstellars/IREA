@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instellars — Gap Scan</title>
+<link rel="stylesheet" href="css/app.css" />
+<style>
+  html, body { height: 100%; }
+  body { margin: 0; }
+  #app { min-height: 100%; display: flex; flex-direction: column; }
+  /* The report is a self-contained page (its own styles, light/dark theme,
+     filters, print view) shown under the site header. It lives in its own file
+     so its generic element styles can't leak into the site. */
+  .gs-frame { flex: none; width: 100%; min-height: calc(100vh - 64px); border: 0; display: block; background: transparent; }
+
+  .gs-run { max-width: 1180px; width: 100%; margin: 0 auto; padding: 1.2rem 1.5rem 0; box-sizing: border-box; }
+  .gs-card { background: var(--white); border: 1px solid var(--rule); border-radius: 10px; }
+  .gs-card > summary { list-style: none; cursor: pointer; padding: 0.9rem 1.1rem; display: flex; align-items: center; gap: 0.6rem; font-weight: 600; font-size: 0.95rem; }
+  .gs-card > summary::-webkit-details-marker { display: none; }
+  .gs-card > summary .gs-sub { font-weight: 400; font-size: 0.8rem; color: var(--ink-soft); }
+  .gs-card > summary::after { content: "▾"; margin-left: auto; color: var(--ink-soft); }
+  .gs-card[open] > summary::after { content: "▴"; }
+  .gs-body { padding: 0 1.1rem 1.1rem; border-top: 1px solid var(--rule); }
+  .gs-steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: 1rem; margin-top: 1rem; }
+  .gs-step { border: 1px solid var(--rule); border-radius: 8px; padding: 0.9rem 1rem; background: var(--paper); min-width: 0; }
+  .gs-step h3 { margin: 0 0 0.15rem; font-size: 0.9rem; }
+  .gs-step .gs-hint { font-size: 0.76rem; color: var(--ink-soft); margin: 0 0 0.7rem; line-height: 1.45; }
+  .gs-step label { display: block; font-size: 0.78rem; color: var(--ink-soft); margin: 0.55rem 0 0.2rem; }
+  .gs-step input[type=text], .gs-step input[type=number], .gs-step textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 0.82rem; padding: 0.4rem 0.55rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--white); color: var(--ink); }
+  .gs-step textarea { min-height: 70px; resize: vertical; }
+  .gs-radio { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.82rem; margin: 0.3rem 0; color: var(--ink); cursor: pointer; }
+  .gs-radio input { margin-top: 0.2rem; }
+  .gs-btn { font: inherit; font-size: 0.8rem; padding: 0.4rem 0.8rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--white); color: var(--ink); cursor: pointer; }
+  .gs-btn:hover { border-color: var(--ink-soft); }
+  .gs-btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 600; padding: 0.55rem 1.2rem; font-size: 0.86rem; }
+  .gs-btn.primary:disabled { opacity: 0.45; cursor: not-allowed; }
+  .gs-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.6rem; }
+  .gs-link { font-size: 0.76rem; color: var(--ink-soft); text-decoration: underline; cursor: pointer; background: none; border: 0; padding: 0; font-family: inherit; }
+  .gs-status { font-size: 0.78rem; margin-top: 0.5rem; color: var(--ink-soft); }
+  .gs-status b { color: var(--ink); }
+  .gs-msgs { margin: 0.9rem 0 0; font-size: 0.8rem; }
+  .gs-msg { padding: 0.45rem 0.7rem; border-radius: 6px; margin: 0.3rem 0; }
+  .gs-msg.err { background: #FCE8E6; color: #8A1C12; }
+  .gs-msg.warn { background: #FFF4E5; color: #7A4B00; }
+  .gs-msg.ok { background: #E3F3EA; color: #1E5A3B; }
+  .gs-assump { margin-top: 1rem; font-size: 0.8rem; }
+  .gs-assump summary { cursor: pointer; font-weight: 600; }
+  .gs-assump table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; font-size: 0.78rem; }
+  .gs-assump th { text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); padding: 0.4rem 0.4rem; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  .gs-assump td { padding: 0.25rem 0.3rem; border-bottom: 1px solid var(--paper-alt); }
+  .gs-assump td input { width: 4.6rem; font: inherit; font-size: 0.78rem; padding: 0.2rem 0.3rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--white); color: var(--ink); }
+  .gs-assump .gs-wide { overflow-x: auto; }
+  @media (max-width: 520px) { .gs-run { padding: 0.8rem 0.75rem 0; } .gs-body { padding: 0 0.75rem 0.9rem; } }
+</style>
+</head>
+<body>
+<div id="app" class="bnk-root"></div>
+
+<script src="js/data.js"></script>
+<script src="js/irea-master-catalog.js"></script>
+<script src="js/gap-scan-engine.js"></script>
+<script>
+  /* Gap Scan page: the site shell, the two-dataset upload/run panel, and the
+     report (gap-scan-report.html) in a same-origin iframe. The engine
+     (js/gap-scan-engine.js) compares REFERENCE (this site's Pega CDH by default)
+     with BANK (the uploaded CDH) and hands the report a finished scan. */
+  const GS = window.GapScan;
+  const state = {
+    refMode: "master",      // "master" | "xlsx" | "csv"
+    refRows: null, refName: "", refWarnings: [], refInfo: null,
+    bankRows: null, bankFile: "", bankWarnings: [],
+    assumptions: GS.cloneAssumptions(),
+  };
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const $ = (id) => document.getElementById(id);
+
+  document.getElementById("app").innerHTML = `
+    <div class="bnk-header">
+      <div class="bnk-brand" style="margin-bottom:0;">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+      <div class="bnk-header-right">
+        <span class="bnk-segment-pill">${icon("search", 13)} Gap Scan</span>
+        <a href="dashboard.html" style="font-size:0.85rem;color:var(--ink-soft);text-decoration:none;">← Back to dashboard</a>
+      </div>
+    </div>
+
+    <div class="gs-run">
+      <details class="gs-card" id="runCard" open>
+        <summary>Run a scan <span class="gs-sub">Compare another bank's CDH against a reference CDH</span></summary>
+        <div class="gs-body">
+          <div class="gs-steps">
+
+            <div class="gs-step">
+              <h3>1 · Reference: what we compare against</h3>
+              <p class="gs-hint">The IREA master dataset: the Pega CDH action catalog every other bank is measured against.</p>
+              <label class="gs-radio"><input type="radio" name="refMode" value="master" checked><span><b>IREA master dataset</b><br><span class="gs-hint" id="masterRefSummary" style="margin:0"></span></span></label>
+              <label class="gs-radio"><input type="radio" name="refMode" value="xlsx"><span><b>Upload a newer catalog export</b><br><span class="gs-hint" style="margin:0">The Pega action catalog export (.xlsx) with the Action Properties, Treatment Details and Engagement Policies sheets.</span></span></label>
+              <label class="gs-radio"><input type="radio" name="refMode" value="csv"><span><b>Upload a reference CSV or JSON</b><br><span class="gs-hint" style="margin:0">Same columns as the downloadable reference.</span></span></label>
+              <div id="refUploadBox" hidden>
+                <input type="file" id="refFile">
+              </div>
+              <div class="gs-row">
+                <button class="gs-link" id="dlRef" type="button">Download the reference as CSV</button>
+              </div>
+              <div class="gs-status" id="refStatus"></div>
+            </div>
+
+            <div class="gs-step">
+              <h3>2 · Bank CDH data: what we are comparing</h3>
+              <p class="gs-hint">The other bank's CDH actions: either its Pega action catalog export (.xlsx, same format as the reference), or a CSV/JSON with one row per action. In a CSV only <b>name</b> is required; issue, group, channels, status, suitability and audience % sharpen the result.</p>
+              <input type="file" id="bankFile" accept=".xlsx,.csv,.json,text/csv,application/json">
+              <div class="gs-row">
+                <button class="gs-btn" id="useSample" type="button">Use the sample CSV</button>
+                <button class="gs-btn" id="useSampleCat" type="button">Use the sample catalog (.xlsx)</button>
+                <button class="gs-link" id="dlTemplate" type="button">Download template</button>
+              </div>
+              <div class="gs-status" id="bankStatus">No file loaded yet.</div>
+            </div>
+
+            <div class="gs-step">
+              <h3>3 · Settings</h3>
+              <p class="gs-hint">Used for pricing the gaps. Nothing is uploaded anywhere: the scan runs in this browser.</p>
+              <label for="bankName">Bank name</label>
+              <input type="text" id="bankName" placeholder="e.g. Sample Bank">
+              <label for="channelRule">Channel check</label>
+              <select id="channelRule" style="width:100%;font:inherit;font-size:0.82rem;padding:0.4rem 0.55rem;border:1px solid var(--rule);border-radius:6px;background:var(--white);color:var(--ink)">
+                <option value="any" selected>Partial only if no channel in common</option>
+                <option value="all">Partial if any reference channel is missing (strict)</option>
+                <option value="off">Don't judge channels</option>
+              </select>
+              <label for="customers">Customers the values are scaled to</label>
+              <input type="number" id="customers" value="250000" min="1" step="1000">
+              <label for="signals">Data signals the bank has (optional, one per line)</label>
+              <textarea id="signals" placeholder="Leave empty to skip. If filled in, missing actions whose rules need a signal not listed here are shown as 'needs data' instead of priced."></textarea>
+            </div>
+          </div>
+
+          <details class="gs-assump">
+            <summary>Valuation assumptions (placeholders, editable)</summary>
+            <p class="gs-hint" style="margin:0.4rem 0 0">Each action is priced as: customers reached × response rate × annual value per converted customer. Ranges are (low, most likely, high) and are sampled 2,000 times for P10 / P50 / P90. These defaults are made-up placeholders, not any bank's real figures; replace them with your own.</p>
+            <div class="gs-wide"><table id="assumpTable"></table></div>
+            <div class="gs-row"><button class="gs-link" id="resetAssump" type="button">Reset to defaults</button></div>
+          </details>
+
+          <div class="gs-row" style="margin-top:1.1rem">
+            <button class="gs-btn primary" id="runScan" type="button" disabled>Run scan</button>
+            <span class="gs-status" id="runHint" style="margin:0">Load a bank file to enable.</span>
+          </div>
+          <div class="gs-msgs" id="msgs"></div>
+        </div>
+      </details>
+    </div>
+
+    <iframe class="gs-frame" id="gsFrame" src="gap-scan-report.html" title="iREA Gap Scan report" scrolling="no"></iframe>`;
+
+  /* ---------------- iframe sizing ---------------- */
+  // Same-origin, so size the frame to the report's own height: the page then
+  // scrolls once (no nested scrollbar) and tracks filters and resizes.
+  const frame = $("gsFrame");
+  function fit() {
+    try {
+      const d = frame.contentDocument;
+      if (!d || !d.body) return;
+      // body height follows the content; documentElement.scrollHeight never
+      // drops below the frame's own height, so it could never shrink.
+      const h = Math.ceil(d.body.getBoundingClientRect().height);
+      if (h) frame.style.height = h + "px";
+    } catch (e) { /* keep the CSS min-height */ }
+  }
+  frame.addEventListener("load", function () {
+    fit();
+    try {
+      const d = frame.contentDocument;
+      if (window.ResizeObserver) new ResizeObserver(fit).observe(d.body);
+      d.addEventListener("change", function () { setTimeout(fit, 50); });
+      d.addEventListener("input", function () { setTimeout(fit, 50); });
+    } catch (e) {}
+  });
+  window.addEventListener("resize", function () { setTimeout(fit, 200); });
+
+  /* ---------------- reading files ---------------- */
+  // Excel reading needs SheetJS, loaded on demand so the page works without it until an .xlsx is used.
+  async function loadSheetJs() {
+    if (window.XLSX) return;
+    await new Promise(function (res, rej) {
+      const sc = document.createElement("script");
+      sc.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      sc.onload = res;
+      sc.onerror = function () { rej(new Error("Could not load the Excel reader (it needs internet access to cdnjs.cloudflare.com). Save the sheets as CSV, or try again online.")); };
+      document.head.appendChild(sc);
+    });
+  }
+  async function readXlsxSheets(file) {
+    await loadSheetJs();
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const sheets = {};
+    wb.SheetNames.forEach(function (n) {
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "" });
+      sheets[n.trim()] = rows.slice(1).filter(function (r) { return r[0] !== "" && r[0] != null; });
+    });
+    return { sheets: sheets };
+  }
+  const isXlsx = (f) => /\.xlsx?$/i.test(f.name);
+
+  // Groups catalog actions under this site's customer journeys where the action title matches.
+  function journeyMap() {
+    const m = {};
+    GS.buildSiteReference(JOURNEYS, OFFER_CATALOG).rows.forEach(function (r) {
+      const k = GS._normKey(r.name);
+      if (!m[k]) m[k] = { journey: r.journey, stage: r.stage };
+    });
+    return m;
+  }
+
+  /* ---------------- reference ---------------- */
+  const MASTER_NAME = "the IREA master dataset";
+  function applyCatalog(cat, name) {
+    if (cat.errors.length) { state.refRows = null; state.refName = ""; state.refInfo = null; showMsgs(cat.errors, []); return false; }
+    state.refRows = cat.rows; state.refName = name; state.refWarnings = cat.warnings; state.refInfo = cat.info;
+    showMsgs([], cat.warnings);
+    return true;
+  }
+  function loadMasterReference() {
+    const raw = window.IREA_MASTER_RAW;
+    if (!raw) { state.refRows = null; showMsgs(["The IREA master dataset (js/irea-master-catalog.js) did not load."], []); return; }
+    const when = String(raw.exportedAt || "").slice(0, 10);
+    applyCatalog(GS.parseActionCatalog(raw, { journeyByTitle: journeyMap() }), MASTER_NAME + (when ? " (catalog export of " + when + ")" : ""));
+    const i = state.refInfo;
+    $("masterRefSummary").textContent = i ? i.active + " active actions in " + i.groups + " groups" + (when ? ", catalog export of " + when : "") : "Not available";
+  }
+  function refreshRefStatus() {
+    const el = $("refStatus");
+    if (state.refRows && state.refName) {
+      const active = state.refRows.filter((r) => !r.inactive).length;
+      el.innerHTML = "Comparing against <b>" + active + "</b> actions from " + esc(state.refName) + ".";
+    } else {
+      el.textContent = state.refMode === "master" ? "" : "Choose a reference file.";
+    }
+  }
+  document.querySelectorAll('input[name="refMode"]').forEach(function (r) {
+    r.addEventListener("change", function () {
+      state.refMode = r.value;
+      const box = $("refUploadBox"), inp = $("refFile");
+      box.hidden = r.value === "master"; inp.value = "";
+      inp.accept = r.value === "xlsx" ? ".xlsx,.xls" : ".csv,.json,text/csv,application/json";
+      if (r.value === "master") { loadMasterReference(); } else { state.refRows = null; state.refName = ""; showMsgs([], []); }
+      refreshRefStatus(); updateRunState();
+    });
+  });
+  $("refFile").addEventListener("change", async function (ev) {
+    const f = ev.target.files[0]; if (!f) return;
+    try {
+      if (state.refMode === "xlsx") {
+        applyCatalog(GS.parseActionCatalog(await readXlsxSheets(f), { journeyByTitle: journeyMap() }), f.name);
+      } else {
+        const n = GS.normaliseReference(GS.parseUpload(await f.text(), f.name));
+        state.refRows = n.errors.length ? null : n.rows; state.refName = f.name; state.refWarnings = n.warnings; state.refInfo = null;
+        showMsgs(n.errors, n.warnings);
+      }
+    } catch (e) { state.refRows = null; showMsgs(["Could not read the reference file: " + e.message], []); }
+    refreshRefStatus(); updateRunState();
+  });
+
+  /* ---------------- bank file ---------------- */
+  function acceptBank(n, name) {
+    state.bankRows = n.errors.length ? null : n.rows; state.bankFile = name; state.bankWarnings = n.warnings;
+    if (state.bankRows && !$("bankName").value) $("bankName").value = name.replace(/\.(csv|json|xlsx?)$/i, "").replace(/[_-]+/g, " ");
+    const inactive = state.bankRows ? state.bankRows.filter((b) => b.inactive).length : 0;
+    $("bankStatus").innerHTML = state.bankRows
+      ? "Loaded <b>" + esc(name) + "</b>: " + state.bankRows.length + " actions" + (inactive ? " (" + inactive + " inactive, not counted as coverage)" : "") + "."
+      : "Could not use <b>" + esc(name) + "</b>.";
+    showMsgs(n.errors, n.warnings);
+    updateRunState();
+  }
+  async function acceptBankFile(f) {
+    try {
+      if (isXlsx(f)) {
+        const cat = GS.parseActionCatalog(await readXlsxSheets(f), {});
+        acceptBank({ rows: GS.catalogToBankRows(cat.rows), errors: cat.errors, warnings: cat.warnings }, f.name);
+      } else {
+        acceptBank(GS.normaliseBank(GS.parseUpload(await f.text(), f.name), "Bank file"), f.name);
+      }
+    } catch (e) { state.bankRows = null; $("bankStatus").textContent = "Could not read the file."; showMsgs(["Could not read the bank file: " + e.message], []); updateRunState(); }
+  }
+  $("bankFile").addEventListener("change", function (ev) { const f = ev.target.files[0]; if (f) acceptBankFile(f); });
+  $("useSample").addEventListener("click", async function () {
+    try {
+      const res = await fetch("gap-scan-sample-bank-cdh.csv", { cache: "no-store" });
+      if (!res.ok) throw new Error("status " + res.status);
+      if (!$("bankName").value) $("bankName").value = "Sample Bank";
+      acceptBank(GS.normaliseBank(GS.parseUpload(await res.text(), "gap-scan-sample-bank-cdh.csv"), "Bank file"), "gap-scan-sample-bank-cdh.csv");
+    } catch (e) { showMsgs(["Could not load the sample file (" + e.message + "). Serve the site over http rather than opening it as a file."], []); }
+  });
+
+  $("useSampleCat").addEventListener("click", async function () {
+    try {
+      const res = await fetch("gap-scan-sample-bank-catalog.xlsx", { cache: "no-store" });
+      if (!res.ok) throw new Error("status " + res.status);
+      if (!$("bankName").value) $("bankName").value = "Sample Bank (catalog)";
+      await acceptBankFile(new File([await res.blob()], "gap-scan-sample-bank-catalog.xlsx"));
+    } catch (e) { showMsgs(["Could not load the sample catalog (" + e.message + "). Serve the site over http rather than opening it as a file."], []); }
+  });
+
+  function download(name, text, type) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([text], { type: type || "text/csv" }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  }
+  $("dlTemplate").addEventListener("click", () => download("bank-cdh-template.csv", GS.bankTemplateCsv()));
+  $("dlRef").addEventListener("click", function () {
+    const rows = state.refRows;
+    if (!rows) { showMsgs(["There is no reference loaded to download."], []); return; }
+    download("reference-cdh.csv", GS.referenceCsv(rows));
+  });
+
+  /* ---------------- assumptions editor ---------------- */
+  const AS_FIELDS = [["eligiblePct", null, "Reach %"], ["rate", 0, "Response % low"], ["rate", 1, "likely"], ["rate", 2, "high"], ["value", 0, "Value $ low"], ["value", 1, "likely"], ["value", 2, "high"]];
+  function renderAssumptions() {
+    const t = $("assumpTable");
+    let h = "<thead><tr><th>Value basis</th>" + AS_FIELDS.map((f) => "<th>" + f[2] + "</th>").join("") + "</tr></thead><tbody>";
+    Object.keys(state.assumptions).forEach(function (k) {
+      const a = state.assumptions[k];
+      h += "<tr><td>" + esc(a.label) + " <span class='gs-hint' style='font-size:0.68rem'>(" + k + ")</span></td>" +
+        AS_FIELDS.map(function (f) {
+          const v = f[1] === null ? a[f[0]] : a[f[0]][f[1]];
+          return "<td><input type='number' step='any' min='0' data-k='" + k + "' data-f='" + f[0] + "' data-i='" + (f[1] === null ? "" : f[1]) + "' value='" + v + "'></td>";
+        }).join("") + "</tr>";
+    });
+    t.innerHTML = h + "</tbody>";
+    t.querySelectorAll("input").forEach(function (inp) {
+      inp.addEventListener("change", function () {
+        const v = parseFloat(inp.value); if (isNaN(v) || v < 0) { renderAssumptions(); return; }
+        const a = state.assumptions[inp.dataset.k];
+        if (inp.dataset.i === "") a[inp.dataset.f] = v; else a[inp.dataset.f][+inp.dataset.i] = v;
+        // keep each (low, likely, high) range ordered
+        if (inp.dataset.i !== "") a[inp.dataset.f].sort(function (x, y) { return x - y; });
+        renderAssumptions();
+      });
+    });
+  }
+  $("resetAssump").addEventListener("click", function () { state.assumptions = GS.cloneAssumptions(); renderAssumptions(); });
+
+  /* ---------------- messages / run ---------------- */
+  function showMsgs(errors, warnings, ok) {
+    const m = $("msgs");
+    const max = 6, w = warnings.slice(0, max);
+    m.innerHTML = errors.map((e) => "<div class='gs-msg err'>" + esc(e) + "</div>").join("") +
+      w.map((e) => "<div class='gs-msg warn'>" + esc(e) + "</div>").join("") +
+      (warnings.length > max ? "<div class='gs-msg warn'>…and " + (warnings.length - max) + " more warnings.</div>" : "") +
+      (ok ? "<div class='gs-msg ok'>" + esc(ok) + "</div>" : "");
+  }
+  function updateRunState() {
+    const ready = !!(state.refRows && state.refRows.length && state.bankRows && state.bankRows.length);
+    $("runScan").disabled = !ready;
+    $("runHint").textContent = ready ? "" : (!state.bankRows ? "Load a bank file to enable." : "Choose a reference to enable.");
+  }
+  $("runScan").addEventListener("click", function () {
+    const customers = parseInt($("customers").value, 10);
+    if (!(customers > 0)) { showMsgs(["Customers must be a positive number."], []); return; }
+    const signals = $("signals").value.split(/\n|,/).map((s) => s.trim()).filter(Boolean);
+    const result = GS.runScan(state.refRows, state.bankRows, {
+      bankName: $("bankName").value.trim() || "Uploaded bank",
+      referenceName: state.refName,
+      customers: customers, assumptions: state.assumptions, channelRule: $("channelRule").value, availableSignals: signals.length ? signals : null,
+    });
+    const send = function () {
+      frame.contentWindow.loadScanData(result);
+      fit();
+      const c = { Covered: 0, Partial: 0, Missing: 0 };
+      result.actions.forEach((a) => c[a.coverage]++);
+      const summary = "Scan complete: " + c.Covered + " covered, " + c.Partial + " partial, " + c.Missing + " missing of " + result.actions.length +
+        " reference actions. " + result.meta.matchedBankActions + " of " + result.meta.bankActive + " active bank actions matched; " + result.bankOnly.length + " have no equivalent.";
+      showMsgs([], state.bankWarnings.concat(state.refWarnings), summary);
+      // collapse the panel but keep the outcome visible in its title bar
+      document.querySelector("#runCard .gs-sub").textContent = result.bank + " vs " + result.reference + ": " + c.Covered + " covered, " + c.Partial + " partial, " + c.Missing + " missing. Click to change inputs.";
+      $("runCard").open = false;
+      frame.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    if (frame.contentWindow && typeof frame.contentWindow.loadScanData === "function") send();
+    else frame.addEventListener("load", send, { once: true });
+  });
+
+  loadMasterReference(); refreshRefStatus(); renderAssumptions(); updateRunState();
+</script>
+</body>
+</html>

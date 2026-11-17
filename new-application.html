@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<!-- Segment Analytics — disabled by default. Only enabled on the Abandoned Application / Confirmation stage (stage=2), see enableSegmentAnalytics() below. <script>   !function(){var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/" + key + "/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="rXdBVA5oE27vBDqifUzSmXs2K3pHoD8R";;analytics.SNIPPET_VERSION="5.2.0";   analytics.load("rXdBVA5oE27vBDqifUzSmXs2K3pHoD8R");   analytics.page();   }}(); </script> -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instellars — New Application</title>
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+<div id="app" class="bnk-root"></div>
+
+<script src="js/data.js"></script>
+<script src="js/cdh.js"></script>
+<script src="js/session.js"></script>
+<script src="js/behavioral.js"></script>
+<script src="js/render-shared.js"></script>
+<script>
+  const customer = requireLoggedInCustomer();
+
+  if (customer) {
+    if (!NEW_APPLICATION_CUSTOMER_IDS.includes(customer.id)) {
+      // New Application isn't offered to this customer — back to their dashboard.
+      window.location.href = "dashboard.html";
+    } else {
+      const session = loadSession();
+      const params = new URLSearchParams(window.location.search);
+      const stage = Math.max(0, Math.min(2, parseInt(params.get("stage"), 10) || 0));
+
+      // Segment Analytics — same snippet that's commented out in <head>, just
+      // wrapped in a function instead of auto-running on page load. Only
+      // called below when stage === 2 (Abandoned Application / Confirmation),
+      // so it never loads on Basic Info, Additional Info, or any other page.
+      //
+      // ORDERING: Segment's own vendor snippet normally calls analytics.page()
+      // as its very last line, which would fire before we get a chance to
+      // call identify() — sending the pageview as anonymous, then attributing
+      // it to a user only after the fact via shared anonymousId. That
+      // trailing analytics.page() call has been removed from the snippet
+      // copy below; we call identify() first, then page() ourselves, so
+      // every pageview is already attached to the correct userId when sent.
+      function enableSegmentAnalytics() {
+        if (!window.analytics) {
+          !function(){var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/" + key + "/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="rXdBVA5oE27vBDqifUzSmXs2K3pHoD8R";;analytics.SNIPPET_VERSION="5.2.0";   analytics.load("rXdBVA5oE27vBDqifUzSmXs2K3pHoD8R");   }}();
+        }
+
+        // Attribute whatever Segment captures to the actual logged-in
+        // customer, rather than leaving it as an anonymous session.
+        window.analytics.identify(customer.id, {
+          name: customer.name,
+          segment: customer.segment,
+          tenureYears: customer.tenureYears,
+        });
+
+        // Fires after identify(), so the pageview is already attributed to
+        // the right userId when it's sent.
+        window.analytics.page();
+      }
+
+      // Confirmation page (stage 2) is where the Tealium call fires, and it's
+      // also the page with "Back to dashboard" / "Start over" / "Exit to
+      // dashboard" links right next to it. If the user clicks one of those
+      // immediately, the browser can abort the still-in-flight utag.js
+      // fetch (or the event it sends) on navigation — which is why the
+      // event sometimes never reaches Tealium even though the code that
+      // fires it is correct. navigateAfterTealium() gives the pending call
+      // a brief window to actually leave the browser before letting
+      // navigation proceed, capped so it never blocks the user for long.
+      let tealiumNavGuardResolve = null;
+      const tealiumNavGuard = new Promise((resolve) => { tealiumNavGuardResolve = resolve; });
+      function releaseTealiumNavGuard() {
+        if (tealiumNavGuardResolve) {
+          tealiumNavGuardResolve();
+          tealiumNavGuardResolve = null;
+        }
+      }
+      function navigateAfterTealium(href) {
+        Promise.race([
+          tealiumNavGuard,
+          new Promise((resolve) => setTimeout(resolve, 1500)),
+        ]).then(() => {
+          window.location.href = href;
+        });
+      }
+
+      function enableTealiumAnalytics() {
+        // Tealium's data layer — the equivalent of Segment's identify(id, traits).
+        // There's no separate identify() call in Tealium; utag.js just reads
+        // whatever's already sitting on this global object when it loads or sends.
+        window.utag_data = window.utag_data || {};
+        window.utag_data.customer_id = customer.id;
+        window.utag_data.customer_name = customer.name;
+        window.utag_data.customer_segment = customer.segment;
+        window.utag_data.tenure_years = customer.tenureYears;
+        window.utag_data.application_completed = session.application.completed;
+        window.utag_data.tealium_datasource = "8gnkvp";
+        window.utag_data.tealium_trace_id = "ABCDE1";
+        window.utag_data.page_active_time = 30;
+        window.utag_data.event_name = "PageView";
+        window.utag_data.pega_aud_customer_id = customer.id;
+        window.utag_data.pega_aud_status = "joined";
+
+        // utag.view() is Tealium's pageview call — direct parallel to
+        // analytics.page() above. utag.link() is Tealium's event/action call
+        // — this is the one that actually captures "an application was
+        // submitted" as a discrete, reportable event, which analytics.page()
+        // alone doesn't really do on the Segment side (a pageview isn't the
+        // same thing as a conversion event — this is a slight improvement on
+        // that same idea, not just a literal port).
+        function fireTealiumViewAndLink() {
+          window.utag.view(window.utag_data);
+          window.utag.link({
+            event_name: session.application.completed ? "application_submitted" : "application_abandoned",
+            application_id: session.application.data.id || null,
+            customer_id: customer.id,
+            page_active_time: 30,
+          });
+          // Give the browser a beat to actually dispatch the request these
+          // calls kick off before navigation is allowed to proceed.
+          setTimeout(releaseTealiumNavGuard, 150);
+        }
+
+        if (window.utag) {
+          // Already loaded (e.g. a second call within the same page life —
+          // doesn't happen today since every stage change is a full
+          // navigation, but safe either way) — fire immediately.
+          fireTealiumViewAndLink();
+        } else {
+          // The script tag loads asynchronously, so window.utag doesn't
+          // exist yet the instant it's inserted — calling view()/link()
+          // right after insertBefore() (as a naive port of this snippet
+          // would) throws "Cannot read properties of undefined (reading
+          // 'view')" every time, since utag.js hasn't had a chance to
+          // define window.utag yet. Deferring the calls to the script's own
+          // onload is the same pattern Tealium's real production snippets
+          // use for this exact reason.
+          (function(a,b,c,d){
+            a = "https://tags.tiqcdn.com/utag/instellars-sandbox/abhishek.banerjee/prod/utag.js";
+            b = document; c = "script"; d = b.createElement(c);
+            d.src = a; d.type = "text/java" + c; d.async = true;
+            d.onload = fireTealiumViewAndLink;
+            d.onerror = function () {
+              console.error("Tealium utag.js failed to load — view()/link() not sent.");
+              releaseTealiumNavGuard();
+            };
+            var r = b.getElementsByTagName(c)[0];
+            r.parentNode.insertBefore(d, r);
+          })();
+        }
+      }
+
+      if (stage === 2) {
+        if (session.application.completed === false) {
+          document.title = "Abandoned Application";
+        } else if (session.application.completed === true) {
+          document.title = "Application Completed";
+        }
+        enableSegmentAnalytics();
+        enableTealiumAnalytics();
+        // Previous Tealium Collect-API approach — commented out for now
+        // (§111, explicit, scoped request), superseded here by the utag.js
+        // tag call above. Same trigger point as Segment above (stage 2,
+        // covers both outcomes), just a distinct event name per outcome.
+        // Not awaited — a side-effect log call that shouldn't hold up the page.
+        // const tealiumEventName = session.application.completed === false ? "application_abandoned" : "application_submitted";
+        // triggerTealiumEvent(customer, tealiumEventName).then((result) => {
+        //   if (result.status === "ok") {
+        //     pushSessionLog(session, "system", `Tealium event sent for ${customer.name} — "${tealiumEventName}"`);
+        //   } else {
+        //     pushSessionLog(session, "system", `Tealium event failed for ${customer.name} — "${tealiumEventName}": ${result.error}`);
+        //     console.error("Tealium event failed:", result.error);
+        //   }
+        //   saveSession(session);
+        // });
+      }
+
+      function stageHref(i) {
+        return `new-application.html?stage=${i}`;
+      }
+
+      function renderBody() {
+        const d = session.application.data;
+        const finalStageLabel = session.application.completed === false ? "Abandoned Application" : "Confirmation";
+
+        const stepperHtml = ["Basic Info", "Additional Info", finalStageLabel].map((label, i) => {
+          const status = i === stage ? "current" : i < stage ? "done" : "upcoming";
+          const dotContent = i < stage ? icon("check", 12) : String(i + 1);
+          const connector = i < 2 ? `<div class="bnk-stepper-line ${i < stage ? "done" : ""}"></div>` : "";
+          return `
+            <div class="bnk-stepper-item">
+              <span class="bnk-stepper-dot bnk-stepper-${status}">${dotContent}</span>
+              <span class="bnk-stepper-label">${label}</span>
+            </div>${connector}`;
+        }).join("");
+
+        let bodyHtml;
+        if (stage === 0) {
+          bodyHtml = `
+            <div class="bnk-application-panel">
+              <div class="bnk-display" style="font-size:1.2rem;margin-bottom:1.2rem;">Basic Info</div>
+              <div class="bnk-form-row">
+                <div class="bnk-form-group">
+                  <label class="bnk-form-label">Full name</label>
+                  <input class="bnk-form-input" type="text" placeholder="Jane Doe" value="${d.fullName || ""}" oninput="handleFieldChange('fullName', this.value)" />
+                </div>
+                <div class="bnk-form-group">
+                  <label class="bnk-form-label">Age</label>
+                  <input class="bnk-form-input" type="number" placeholder="34" value="${d.age ?? ""}" oninput="handleFieldChange('age', this.value)" />
+                </div>
+              </div>
+              <div class="bnk-form-row">
+                <div class="bnk-form-group">
+                  <label class="bnk-form-label">Email address</label>
+                  <input class="bnk-form-input" type="email" placeholder="jane@example.com" value="${d.email || ""}" oninput="handleFieldChange('email', this.value)" />
+                </div>
+                <div class="bnk-form-group">
+                  <label class="bnk-form-label">Phone number</label>
+                  <input class="bnk-form-input" type="tel" placeholder="(555) 555-0100" value="${d.phone || ""}" oninput="handleFieldChange('phone', this.value)" />
+                </div>
+              </div>
+              <div class="bnk-application-actions">
+                <span></span>
+                <a class="bnk-btn-primary" style="flex:none;padding:0.6rem 1.4rem;text-decoration:none;" href="${stageHref(1)}">Continue ${icon("chevronRight", 14)}</a>
+              </div>
+            </div>`;
+        } else if (stage === 1) {
+          bodyHtml = `
+            <div class="bnk-application-panel">
+              <div class="bnk-display" style="font-size:1.2rem;margin-bottom:1.2rem;">Additional Info</div>
+              <div class="bnk-form-group">
+                <label class="bnk-form-label">Mailing address</label>
+                <input class="bnk-form-input" type="text" placeholder="123 Main St, Springfield" value="${d.address || ""}" oninput="handleFieldChange('address', this.value)" />
+              </div>
+              <div class="bnk-form-row">
+                <div class="bnk-form-group">
+                  <label class="bnk-form-label">Employment status</label>
+                  <select class="bnk-form-select" onchange="handleFieldChange('employment', this.value)">
+                    <option value="">Select one</option>
+                    <option value="Employed" ${d.employment === "Employed" ? "selected" : ""}>Employed</option>
+                    <option value="Self-employed" ${d.employment === "Self-employed" ? "selected" : ""}>Self-employed</option>
+                    <option value="Student" ${d.employment === "Student" ? "selected" : ""}>Student</option>
+                    <option value="Retired" ${d.employment === "Retired" ? "selected" : ""}>Retired</option>
+                  </select>
+                </div>
+                <div class="bnk-form-group">
+                  <label class="bnk-form-label">Annual income</label>
+                  <input class="bnk-form-input" type="text" placeholder="$50,000" value="${d.income || ""}" oninput="handleFieldChange('income', this.value)" />
+                </div>
+              </div>
+              <div class="bnk-form-row">
+                <div class="bnk-form-group">
+                  <label class="bnk-form-label">Loan amount</label>
+                  <input class="bnk-form-input" type="text" placeholder="$12,000" value="${d.loanAmount || ""}" oninput="handleFieldChange('loanAmount', this.value)" />
+                </div>
+                <div class="bnk-form-group">
+                  <label class="bnk-form-label">Tenure</label>
+                  <input class="bnk-form-input" type="text" placeholder="3 years" value="${d.tenure || ""}" oninput="handleFieldChange('tenure', this.value)" />
+                </div>
+              </div>
+              <div class="bnk-form-group">
+                <label class="bnk-form-label">Interest rate</label>
+                <input class="bnk-form-input" type="text" readonly disabled value="${d.interestRate || "Not available"}" style="background:var(--paper-alt);color:var(--ink-soft);cursor:not-allowed;" />
+              </div>
+              <div class="bnk-application-actions">
+                <button class="bnk-btn-ghost" onclick="handleExit()">Exit</button>
+                <button class="bnk-btn-primary" style="flex:none;padding:0.6rem 1.4rem;" onclick="handleFinalize()">${icon("check", 14)} Finalize</button>
+              </div>
+            </div>`;
+        } else {
+          const completed = session.application.completed === true;
+          bodyHtml = `
+            <div class="bnk-application-panel">
+              <div class="bnk-confirmation-wrap">
+                <div class="bnk-confirmation-icon ${completed ? "success" : "muted"}">${completed ? icon("check", 28) : icon("x", 28)}</div>
+                <div class="bnk-display bnk-confirmation-title">${completed ? "Application Completed" : "Abandoned Application"}</div>
+                <div class="bnk-confirmation-sub">
+                  ${completed
+                    ? `Thanks, ${d.fullName || "there"} — your new application has been submitted and is being reviewed.`
+                    : "The application was exited before all steps were finished. No submission was made."}
+                </div>
+                <div style="display:flex; gap:0.6rem; justify-content:center; flex-wrap:wrap;">
+                  ${!completed ? `<button class="bnk-btn-ghost" onclick="handleStartOver()">${icon("refreshCw", 14)} Start over</button>` : ""}
+                  <a class="bnk-btn-primary" style="flex:none;padding:0.6rem 1.4rem;text-decoration:none;" href="dashboard.html" onclick="handleExitToDashboard(event)">Back to dashboard</a>
+                </div>
+              </div>
+            </div>`;
+        }
+
+        return `
+          <div>
+            <div class="bnk-header">
+              <div class="bnk-brand" style="margin-bottom:0;">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+              <div class="bnk-header-right">
+                <span style="font-size:0.85rem;">New Application · ${customer.name}</span>
+                <a class="bnk-signout-btn" style="text-decoration:none;" href="dashboard.html" onclick="handleExitToDashboard(event)">${icon("x", 14)}<span> Exit to dashboard</span></a>
+              </div>
+            </div>
+            <div class="bnk-body">
+              <div class="bnk-stepper-row" style="justify-content:center;">${stepperHtml}</div>
+              ${bodyHtml}
+            </div>
+          </div>`;
+      }
+
+      function paint() {
+        document.getElementById("app").innerHTML = renderBody();
+      }
+
+      window.handleFieldChange = function (field, value) {
+        session.application.data[field] = value;
+        saveSession(session);
+      };
+      window.handleExit = function () {
+        session.application.completed = false;
+        saveSession(session);
+        pushSessionLog(session, "system", "New application exited before completion.");
+        saveSession(session);
+        window.location.href = stageHref(2);
+      };
+      window.handleFinalize = function () {
+        session.application.completed = true;
+        saveSession(session);
+        pushSessionLog(session, "accepted", "New application submitted — Application Completed.");
+        saveSession(session);
+        window.location.href = stageHref(2);
+      };
+      window.handleStartOver = function () {
+        resetApplication(session);
+        navigateAfterTealium(stageHref(0));
+      };
+      // Only the confirmation page (stage 2) has a pending Tealium call to
+      // wait for — everywhere else this link should navigate immediately.
+      window.handleExitToDashboard = function (e) {
+        if (stage !== 2) return;
+        e.preventDefault();
+        navigateAfterTealium("dashboard.html");
+      };
+
+      paint();
+    }
+  }
+</script>
+</body>
+</html>

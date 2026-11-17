@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Instellars — Data Sources</title>
+<link rel="stylesheet" href="css/app.css" />
+<style>
+  .ds-body { max-width: 1180px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  .ds-tabs { display: flex; gap: 0.3rem; border-bottom: 1px solid var(--rule); margin-bottom: 1.3rem; overflow-x: auto; }
+  .ds-tab { background: none; border: none; padding: 0.65rem 1.1rem; font-size: 0.86rem; color: var(--ink-soft); cursor: pointer; border-bottom: 2px solid transparent; font-family: inherit; white-space: nowrap; }
+  .ds-tab:hover:not(.active) { color: var(--ink); }
+  .ds-tab.active { color: var(--ink); border-bottom-color: var(--brass); font-weight: 600; }
+  .ds-section { margin-bottom: 2.2rem; }
+  .ds-section-title { font-size: 1.2rem; margin-bottom: 0.2rem; }
+  .ds-section-sub { font-size: 0.82rem; color: var(--ink-soft); margin-bottom: 1rem; }
+  .ds-table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 8px; }
+  .ds-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; min-width: 720px; }
+  .ds-table th { text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-soft); padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--rule); background: var(--paper); white-space: nowrap; }
+  .ds-table td { padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--paper-alt); color: var(--ink); vertical-align: top; }
+  .ds-table tr:last-child td { border-bottom: none; }
+  .ds-field-name { font-weight: 600; }
+  .ds-field-id { font-size: 0.68rem; color: var(--ink-soft); font-family: "SFMono-Regular", Consolas, monospace; margin-top: 0.1rem; }
+  .ds-mode-pill { display: inline-block; font-size: 0.66rem; font-weight: 600; padding: 0.1rem 0.5rem; border-radius: 20px; white-space: nowrap; }
+  .ds-mode-batch { background: var(--brass-soft); color: #1E40AF; }
+  .ds-mode-realtime { background: #DCEEE2; color: #2B5940; }
+  .ds-mode-both { background: #EDE7FB; color: #5B21B6; }
+  .ds-source { font-size: 0.78rem; }
+  .ds-note { font-size: 0.76rem; color: var(--ink-soft); line-height: 1.45; max-width: 420px; }
+  .ds-status { font-size: 0.76rem; color: var(--ink-soft); white-space: nowrap; display: flex; align-items: center; gap: 0.35rem; }
+  .ds-status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); flex-shrink: 0; }
+  .ds-methodology { background: var(--paper); border: 1px dashed var(--rule); border-radius: 6px; padding: 0.9rem 1rem; font-size: 0.78rem; color: var(--ink-soft); line-height: 1.5; margin-top: 0.5rem; }
+</style>
+</head>
+<body>
+<div id="app" class="bnk-root"></div>
+
+<script src="js/data.js"></script>
+<script>
+  // Non-PII subset of the Pega FS 1:1 Data Model — MLP Field List
+  // (Pega_FS_1to1_Data_Model_MLP.xlsx). Every Sensitive-PII field (e.g.
+  // CustomerID, FirstName, PrimaryEmail on Customer; AccountID on Account)
+  // is deliberately excluded — this page is meant to be safe to reference
+  // without extra data-handling/access-control review. Mode/Source/Note
+  // are copied verbatim from that spreadsheet's own Update Mode, Source
+  // Type, and Regional Sourcing Note (SE Asia) columns.
+  const DS_MODE_CLASS = { "Batch": "ds-mode-batch", "Real-Time": "ds-mode-realtime", "Both": "ds-mode-both" };
+
+  const DS_CUSTOMER_FIELDS = [
+    { id: "Age", field: "Age", mode: "Batch", source: "Internal", note: "Derived from DOB captured at KYC (NRIC/MyKad/passport)." },
+    { id: "PrimaryState", field: "Primary state or territory", mode: "Batch", source: "Internal", note: "Captured at onboarding/KYC; internal CRM." },
+    { id: "PrimaryPostalCode", field: "Primary postal code", mode: "Batch", source: "Internal", note: "Captured at onboarding/KYC; internal CRM." },
+    { id: "HasOptInEmail", field: "Email opt-in", mode: "Both", source: "Internal", note: "Managed by bank's own consent/preference center per local PDPA (Malaysia/Singapore/Philippines) or UU PDP (Indonesia)." },
+    { id: "HasOptInSMS", field: "SMS opt-in", mode: "Both", source: "Internal", note: "Same as above — internal consent management, governed by local PDPA rules." },
+    { id: "HasOptInCall", field: "Call opt-in", mode: "Both", source: "Internal", note: "Same as above — internal consent management, governed by local PDPA rules." },
+    { id: "HasOptInPushNotification", field: "Push notification opt-in", mode: "Both", source: "Internal", note: "Same as above — internal consent management, governed by local PDPA rules." },
+    { id: "AnnualIncome", field: "Annual income", mode: "Batch", source: "External (partial)", note: "Self-reported (internal) is common baseline; verification via EPF/CPF contribution records or payroll/tax authority (LHDN, IRAS, BIR) adds external confidence, especially for underwriting-grade use." },
+    { id: "CreditScore", field: "Credit score", mode: "Batch", source: "External", note: "Country-specific bureau: CTOS/CCRIS (Malaysia), CBS/Experian (Singapore), SLIK OJK (Indonesia), NCB (Thailand), CIC (Philippines/Vietnam). No unified regional score — per-country integration required." },
+    { id: "DebtToIncomeRatio", field: "Debt-to-income ratio", mode: "Batch", source: "External (partial)", note: "Debt side often needs the same bureau feed as CreditScore; informal/unregistered lending common in Indonesia/Philippines won't be captured." },
+    { id: "NetWealth", field: "Net wealth", mode: "Batch", source: "External (partial)", note: "True cross-institution net wealth requires aggregation — SGFinDex makes this feasible in Singapore; largely unavailable elsewhere in SEA for MLP. Treat as internal-balances-only outside Singapore." },
+    { id: "IsCustomerActive", field: "Is customer active", mode: "Batch", source: "Internal", note: "Derived from internal transaction/account activity." },
+    { id: "RelationshipLengthDays", field: "Relationship length in days", mode: "Batch", source: "Internal", note: "Derived from internal account-open date." },
+    { id: "CLV", field: "CLV designation", mode: "Real-Time", source: "Internal", note: "Calculated internally from the bank's own transaction and balance data." },
+    { id: "NumDepositAccount", field: "Count of deposit accounts", mode: "Batch", source: "Internal*", note: "Internal if counting accounts at this bank only. Becomes External (partial) if intended as true share-of-wallet across institutions — needs aggregation, mainly feasible only in Singapore via SGFinDex." },
+    { id: "NumLoanAccount", field: "Count of loan accounts", mode: "Batch", source: "Internal*", note: "Same caveat as NumDepositAccount — internal-only unless cross-bank view is required." },
+    { id: "NumCreditCardAccount", field: "Count of credit card accounts", mode: "Batch", source: "Internal*", note: "Same caveat as NumDepositAccount — internal-only unless cross-bank view is required." },
+    { id: "NumInvestmentAccount", field: "Count of investment accounts", mode: "Batch", source: "Internal*", note: "Same caveat as NumDepositAccount — internal-only unless cross-bank view is required." },
+    { id: "IsDeceased", field: "Is deceased", mode: "Batch", source: "External", note: "No SEA-wide death index. Sources vary: JPN (Malaysia), ICA (Singapore), local civil registries (Indonesia/Philippines/Vietnam), or commercial vendors (Experian, LexisNexis) with partial coverage. Build internal next-of-kin/branch-reported fallback in parallel." },
+    { id: "IsInCollections", field: "Is in collections", mode: "Batch", source: "Internal", note: "Derived from internal collections/servicing system." },
+    { id: "IsInArrears", field: "Is in arrears", mode: "Batch", source: "Internal", note: "Derived from internal loan servicing system." },
+    { id: "IsFinanciallyVulnerable", field: "Is financially vulnerable", mode: "Batch", source: "Internal", note: "Can be derived from internal signals (arrears, complaints, product mix); some banks optionally enrich with third-party data, not required for MLP." },
+    { id: "IsInActiveComplaint", field: "Is in active complaint", mode: "Batch", source: "Internal", note: "Derived from internal complaints-management system." },
+  ];
+
+  const DS_ACCOUNT_FIELDS = [
+    { id: "AccountType", field: "Account type", mode: "Batch", source: "Internal", note: "Core banking system of record." },
+    { id: "ProductType", field: "Product type", mode: "Batch", source: "Internal", note: "Core banking system of record." },
+    { id: "AccountBalance", field: "Account balance", mode: "Batch", source: "Internal", note: "Core banking system of record." },
+    { id: "Status", field: "Status", mode: "Batch", source: "Internal", note: "Core banking system of record." },
+    { id: "IsAccountActive", field: "Is account active", mode: "Batch", source: "Internal", note: "Core banking system of record." },
+    { id: "CreditLine", field: "Credit line", mode: "Batch", source: "Internal", note: "Set by the bank's own underwriting system." },
+    { id: "CreditLineAvailable", field: "Available credit line", mode: "Batch", source: "Internal", note: "Core banking system of record." },
+    { id: "AccountOpenDate", field: "Account open date", mode: "Batch", source: "Internal", note: "Core banking system of record." },
+    { id: "Rate", field: "Rate", mode: "Batch", source: "Internal", note: "Set by the bank's own pricing/product system." },
+    { id: "RateType", field: "Rate type", mode: "Batch", source: "Internal", note: "Core banking system of record." },
+    { id: "IsInCollections", field: "Is in collections", mode: "Batch", source: "Internal", note: "Derived from internal collections/servicing system." },
+    { id: "IsInArrears", field: "Is in arrears", mode: "Batch", source: "Internal", note: "Derived from internal loan servicing system." },
+    { id: "NumDaysPastDue", field: "Number of days past due", mode: "Batch", source: "Internal", note: "Core banking / loan servicing system." },
+    { id: "LoanToValueRatio", field: "Loan to value ratio", mode: "Batch", source: "External", note: "Needs current collateral valuation. AVMs are immature outside Singapore (URA data); most SEA markets still rely on panel valuers (e.g., JPPH in Malaysia) or manual appraisal — plan for a slower, less automated feed." },
+    { id: "UnpaidPrincipal", field: "Unpaid principal", mode: "Batch", source: "Internal", note: "Core banking / loan servicing system." },
+  ];
+
+  const DS_CLICKSTREAM_FIELDS = [
+    { id: "WebVisitsLast1Day", field: "Web visits last 1 day", mode: "Real-Time", source: "Internal", note: "Bank's own web/digital analytics platform." },
+    { id: "WebVisitsLast7Days", field: "Web visits last 7 days", mode: "Real-Time", source: "Internal", note: "Bank's own web/digital analytics platform." },
+    { id: "DepositVisitsLast7Days", field: "Deposit page visits last 7 days", mode: "Real-Time", source: "Internal", note: "Bank's own web/digital analytics platform." },
+    { id: "LoansVisitsLast7Days", field: "Loan page visits last 7 days", mode: "Real-Time", source: "Internal", note: "Bank's own web/digital analytics platform." },
+    { id: "MortgageVisitsLast7Days", field: "Mortgage page visits last 7 days", mode: "Real-Time", source: "Internal", note: "Bank's own web/digital analytics platform." },
+    { id: "CardsVisitsLast7Days", field: "Cards page visits last 7 days", mode: "Real-Time", source: "Internal", note: "Bank's own web/digital analytics platform." },
+    { id: "ChurnRiskVisitsLast1Day", field: "Churn page visits last 1 hour/day", mode: "Real-Time", source: "Internal", note: "Bank's own web/digital analytics platform." },
+    { id: "AccessedViaMobileLast7Days", field: "Accessed via mobile last 7 days", mode: "Real-Time", source: "Internal", note: "Bank's own mobile app analytics platform." },
+    { id: "HomePageVisitsLast1Day", field: "Home page visits last 1 day", mode: "Real-Time", source: "Internal", note: "Bank's own web/digital analytics platform." },
+  ];
+
+  // Deterministic per-field "last updated" — stable across reloads (same
+  // spirit as the seeded PRNGs used elsewhere in this app for simulated
+  // data, e.g. Program Performance's mulberry32), not a fresh random value
+  // on every visit. Bucketed by Mode so it reads plausibly: Real-Time
+  // fields updated minutes ago, Batch fields since the last nightly run,
+  // Both somewhere in between.
+  function dsHash(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }
+  function dsLastUpdated(field) {
+    const h = dsHash(field.id);
+    if (field.mode === "Real-Time") return { text: `${(h % 58) + 1}m ago`, fresh: true };
+    if (field.mode === "Both") return { text: `${(h % 11) + 1}h ago`, fresh: (h % 11) < 4 };
+    return { text: `${(h % 20) + 4}h ago`, fresh: false };
+  }
+
+  function renderTable(rows) {
+    return `
+      <div class="ds-table-wrap">
+        <table class="ds-table">
+          <thead><tr><th>Field</th><th>Mode</th><th>Source</th><th>Sourcing Note</th><th>Status</th></tr></thead>
+          <tbody>
+            ${rows.map(r => {
+              const updated = dsLastUpdated(r);
+              return `
+              <tr>
+                <td><div class="ds-field-name">${r.field}</div><div class="ds-field-id">${r.id}</div></td>
+                <td><span class="ds-mode-pill ${DS_MODE_CLASS[r.mode] || "ds-mode-batch"}">${r.mode}</span></td>
+                <td class="ds-source">${r.source}</td>
+                <td class="ds-note">${r.note}</td>
+                <td><span class="ds-status"><span class="ds-status-dot" style="background:${updated.fresh ? "var(--success)" : "#C97A1E"};"></span>Updated ${updated.text}</span></td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
+  const DS_TABS = [
+    { key: "customer", label: "Customer", rows: DS_CUSTOMER_FIELDS },
+    { key: "account", label: "Account", rows: DS_ACCOUNT_FIELDS },
+    { key: "clickstream", label: "Click Stream", rows: DS_CLICKSTREAM_FIELDS },
+  ];
+  let dsActiveTab = "customer";
+
+  window.switchDsTab = function (key) {
+    dsActiveTab = key;
+    render();
+  };
+
+  function render() {
+    const active = DS_TABS.find(t => t.key === dsActiveTab);
+    const tabsHtml = DS_TABS.map(t =>
+      `<button class="ds-tab ${t.key === dsActiveTab ? "active" : ""}" onclick="switchDsTab('${t.key}')">${t.label}</button>`
+    ).join("");
+
+    document.getElementById("app").innerHTML = `
+      <div>
+        <div class="bnk-header">
+          <div class="bnk-brand" style="margin-bottom:0;">${icon("landmark", 20)}<span class="bnk-brand-word">Instellars</span></div>
+          <div class="bnk-header-right">
+            <span class="bnk-segment-pill">${icon("refreshCw", 13)} Data Sources</span>
+            <a href="dashboard.html" style="font-size:0.85rem;color:var(--ink-soft);text-decoration:none;">← Back to dashboard</a>
+          </div>
+        </div>
+
+        <div class="ds-body">
+          <div class="bnk-greeting" style="margin-bottom:1rem;">Data Sources</div>
+
+          <div class="ds-tabs">${tabsHtml}</div>
+
+          <div class="ds-section">
+            <div class="ds-section-sub">${active.rows.length} non-PII fields</div>
+            ${renderTable(active.rows)}
+          </div>
+
+          <div class="ds-methodology">
+            <strong>Source:</strong> Pega FS 1:1 Data Model — MLP Field List (Pega_FS_1to1_Data_Model_MLP.xlsx). <strong>Mode</strong> is how the field is loaded — Batch (ETL / batch file import), Real-Time (streaming / live event), or Both (batch-loaded, reconciled in real time). <strong>Source</strong> is Internal (the bank's own systems), External (a third-party/government data source), or External (partial) (a blend, where an internal value can ship for MLP and an external source improves accuracy or coverage). Fields marked Internal* are internal-only unless a true cross-institution view is required.
+          </div>
+        </div>
+      </div>`;
+  }
+
+  render();
+</script>
+</body>
+</html>
