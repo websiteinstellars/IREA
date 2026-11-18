@@ -2630,6 +2630,86 @@ Direct request: "I think we should build in a Treatment, Engagement Policies, Co
 
 **Open items:** When rules (need a data source); treatment text is compared for presence only, not wording; weights, dates and placement are read but only an expired end date is flagged; per-instance policy attribution on multi-action paths; group-level eligibility is folded into each action's Eligibility.
 
+## 154. Gap Scan: Financial Impact From the iREA for Banks Value Calculator
+
+Direct request: "Can we use the attached [iREA_for_Banks_Value_Calculator.xlsx] to determine the financial impact determined using Gap Scan."
+
+**What the workbook is:** 82 MVP actions (Action Value sheet: base Retail/SME, eligible %, primary channel, uplift, value per outcome, contacts per year, incentive per outcome, value type) plus an Assumptions sheet (Retail 2,000,000 and SME 100,000 base, Low/Base/High multiplier 0.5/1/1.5, 25% overlap discount, 40 actions in Wave 1, Year-1 realisation 60% / 20%, package price USD 234,000, licence and run cost 0, channel reach and cost per contact) and a Business Case sheet (3-year view, ROI, payback). Every figure in it is an illustrative default, not a bank's data.
+
+**New file `js/gap-scan-calculator.js` (`window.GapScanCalc`):** the 82 actions and defaults embedded as data, plus the workbook's own maths:
+- `economics(action, model, mult)`: eligible = base x eligible %; reached = eligible x channel reach; outcomes = reached x uplift x multiplier; net = outcomes x value - reached x contacts x cost per contact - outcomes x incentive.
+- `plan(model)`: Low/Base/High net per action, rank by Base net, Wave 1 = top N (or an explicit wave override), totals per wave.
+- `threeYear(w1, w2, model)`: Year 1 = (W1 x 60% + W2 x 20%) x (1 - overlap); Years 2-3 = (W1 + W2) x (1 - overlap); costs = package + licence + run; ROI = net / cost; payback.
+- `parseWorkbook(sheets)`: reads a bank's filled-in copy of the calculator (Action Value and Assumptions, found by label so row positions can move) and returns a model.
+- Verified: defaults reproduce the workbook exactly (all-action net 7,493,481.4; Wave 1 6,449,215; Wave 2 1,044,266.4; Year 1 3,058,786.71; run-rate after overlap 5,620,111.05; ROI 60.1; payback 0.92 months), and parsing the real workbook gives the same totals. The source workbook is kept in the project root as `iREA_for_Banks_Value_Calculator.xlsx` (it is the file to upload in the Valuation model panel, and the source the embedded data in `js/gap-scan-calculator.js` was generated from).
+
+**Engine (`js/gap-scan-engine.js`):** `runScan(..., {calculator: model})` values each reference action with the calculator instead of the placeholder ranges.
+- `mapCalculator` pairs calculator actions with reference actions by name (exact name, else the existing banking-synonym similarity at the loose 0.65 threshold), one to one, best score first, so an action is never valued twice. 63 of the calculator's 82 actions map to the 109-action master; 19 do not (they come from the iREA deck and are not in the Pega catalog, e.g. Kill Switch Awareness, Money Mule Warning) and cannot be a gap. 46 master actions are not in the calculator and are shown as "Not in calculator" (not valued).
+- A valued row gets P10/P50/P90 = Low/Base/High scenario net value, `eligible_pct`, `customers_to_treat` (eligible customers), and extra columns `calc_action`, `calc_value_type`, `calc_channel`, `calc_wave`, `calc_rank`. `value_basis` is `not-in-calculator` when unmatched.
+- `result.financial` carries the settings, the matched / unmatched counts and the all-action Low/Base/High totals. The placeholder model is still available (and is used when no calculator is passed).
+
+**Page (`gap-scan.html`):** "Valuation model" panel: radio iREA Value Calculator (default) or Simple placeholder ranges; for the calculator, upload a filled-in `.xlsx`, download the inputs as CSV, reset to defaults, edit the settings, scenario multipliers, channel reach/cost and every action's inputs. The "customers" field now applies to the placeholder model only. The scan summary says how many actions were valued.
+
+**Report (`gap-scan-report.html`):** new "Financial impact of the gaps" section (Low / Base / High): gap run-rate before overlap split by Wave 1 and 2, overlap discount, run-rate after overlap, Year 1/2/3 benefit, 3-year benefit, cost, net benefit, ROI, payback, with notes on what is and is not valued. A fifth KPI "Net run-rate after overlap"; a Wave column in All actions; the meta line and the Value methodology bullet switch to the calculator wording. Partial actions use the existing share control. Missing and (share of) Partial actions feed the wave totals.
+
+**Verified live:** sample catalog vs master = 89/9/11, 18 gap actions valued (2 not in the calculator), Base gap run-rate $1.20M, after 25% overlap $900K, 3-year net $2.08M, ROI 8.9x, payback 5.5 months; editing overlap to 30% and licence to 50,000 changes the table as the formulas predict (3-year cost 234,000 + 3 x 50,000 = 384,000); switching to placeholder mode hides the section and restores the old KPIs and text; no console errors; the page itself does not overflow at 375 px.
+
+**Caveats / open items:** all calculator inputs are illustrative until the bank's own figures replace them; the package price is the cost of the whole iREA scope, so the ROI is a size-of-gap guide, not a quote for closing only these gaps; calculator actions that have no equivalent in the master (19) are left out; wave assignment uses the calculator's ranking of all 82 actions, not only the gaps; the report iframe's inner document measures about 6 px wider than the page at 375 px (clipped, not visible, not investigated); When-rule comparison is still open (see section 153).
+
+
+## 155. Value Calculator: Rows Added to the Action Value Sheet So Every Master-Catalog Action Has a Value
+
+Direct requests: after being told 46 of the 109 master actions showed "Not in calculator", "Add rows to the calculator"; then, after a first version put them on a new sheet, "no need for the new tab we can add it to the Action Value tab itself."
+
+**What was added:** 46 rows (numbered 83 to 128, sheet rows 87 to 132) at the bottom of the **Action Value** sheet, one for each master-catalog action that is not among the 82 MVP actions. They have the same columns and formulas as the existing rows (checked cell by cell against the row-5 pattern for all 128 rows). Two columns were added at the right: **Z = Pega action id** the row values (this is how the code recognises an added row) and **AA = basis** for the starting values. The inputs are yellow. Row 3 of the sheet now carries a grey formula guide above the calculated columns (Outcomes = K x L x M x scenario, Gross = N x O, Contact cost = K x L x Q x R, Incentive = N x T, Net = P - S - U; text only, no formulas changed). To make the sheet one table, the workbook was changed as follows: the TOTAL row moved from row 87 to row 133 and sums rows 5 to 132; every range that ended at row 86 (the rank formulas, the Wave-override validation, Business Case C8:C10, all Journey Summary roll-ups: 232 formulas) now ends at row 132; the two notes moved below the total and a third note explains the added rows; the "82" wording on Read Me, Business Case B8, Assumptions D10, the sheet title and the Journey Summary heading now says 82 MVP + 46 added. The 18 Scratch & Win / investment-account rows sit under the existing journey "Wealth Management & Advisory" so the 20 journeys of Journey Summary still cover every row.
+
+**Consequence:** the workbook's totals now cover 128 actions. Base net value of all actions is 8,376,411 (7,493,481.4 for the 82 plus 882,930 for the added rows); Wave 1 (top 40 by net value) is 6,457,715 instead of 6,449,215, because the added "Time Deposit" row (62,400) outranks the 40th MVP action (54,000) and pushes it into Wave 2. The Business Case, Journey Summary and ROI figures in the workbook therefore differ from the original 82-action file, which is still in the user's Downloads folder.
+
+**The starting values are mine, not the bank's.** They are chosen by analogy with the closest MVP action (personal-loan variants use the Pre-Approved Loan margin of USD 400 with a smaller uplift; wealth items follow the advisory actions; the 21 Scratch & Win steps are low-value engagement messages with a few referral and voucher steps carrying a value and an incentive; SME items use the SME base). The rows live in the workbook and in `ADDED_RAW` in `js/gap-scan-calculator.js` (keep the two in step). They must be replaced with the bank's figures (priority: eligible % and value per outcome). The workbook was written with openpyxl, so it has no cached values until Excel opens it (calculation on load is switched on); LibreOffice was not available here to recalculate it.
+
+**Code:** `js/gap-scan-calculator.js` embeds the 46 rows (`ADDED_RAW`, each with `added: true` and `refId`). `plan()` ranks all 128 actions together for the Wave 1 cut, as the workbook does. `parseWorkbook` reads the added rows from the Action Value sheet and marks a row as added when column Z holds an id. `mapCalculator` in the engine pins an added row to its Pega action id first (this keeps the two same-named "Pre-Approved Loan Offer" actions apart), then falls back to the name match. New result column `calc_added`; `financial.mvpActions`.
+
+**Page and report wording:** the Valuation model text and the report's notes say the calculator has 82 MVP actions plus added rows, how many valued gaps use added rows (estimates to confirm with the bank), and that waves follow the ranking of all actions.
+
+**Verified live:** with the defaults all 109 master actions map and are valued, none "Not in calculator", no negative values. Uploading the project workbook through the page gives 128 actions, 46 of them added, with zero field differences against the embedded data and the same totals. The sample catalog scan values all 20 gap actions (2 from added rows): gap Base 1.23M, after overlap 923K, 3-year net 2.12M, ROI 9.1x (before the added rows: 18 valued, 1.20M, 8.9x). No console errors.
+
+**Open items:** the 46 sets of inputs need bank sign-off; the 19 calculator actions that are not in the master are still never a gap; a bank workbook without the added rows leaves master actions outside its 82 unvalued.
+
+## 156. Sample Bank in the Catalog Layout, With Treatment, Engagement Policy and Contact Policy Tabs
+
+Direct request: "Can you update the sample bank file with treatment, engagement-policy, contact-policy detail other tabs as the catalog file."
+
+**What changed:** the 28-action sample bank (`gap-scan-sample-bank-cdh.csv`, a flat file that cannot carry tabs) now also exists as `gap-scan-sample-bank-cdh.xlsx`, laid out like a Pega action catalog export: **Action Properties** (label, name, issue, group, id, Always/Never active flag from the CSV status, description, inbound/outbound channels from the CSV channels), **Treatment Details** (one treatment per channel the bank uses, 50 treatments, with message text, email subject, click-through link and image where a channel carries them; a few deliberately inactive, without text, without an image, or expired), **Engagement Policies** (27 conditions across Action Eligibility, Suitability and Applicability) and **Contact Policies** (3). The CSV is kept (the Gap Scan page still has "Use the sample CSV (actions only)").
+
+**How the detail was made (it is made up, like the rest of the sample):** for each of the 12 bank actions that the scan matches to a master action, the bank's eligibility, suitability and applicability conditions are copied from that master action and then changed in a repeatable way: every third action loses its last check, thresholds are loosened, the CSV's own suitability ("Credit score above 650") is added as a condition, and Personal Loan Pre-Approved gets a debt-to-income limit of 45 against the reference's 36. Bank-only actions get one simple eligibility condition. Contact policies: NTB Welcome Series suppresses for 30 days where the reference says 7; Birthday Message and Direct Deposit Bonus have policies the reference does not. Note the Pega export numbers every policy line "E1, E2..." whatever the type (a line starting "S1" is not read), and the generator follows that. The CSV's `audience_pct` has no place in the catalog layout, so it is not carried over. The generator is a throwaway script, not part of the project; edit the workbook directly to change the sample.
+
+**Page (`gap-scan.html`):** new button "Use the sample bank (.xlsx, with policies)", next to "Use the sample CSV (actions only)" and "Use the sample catalog (.xlsx)" (the master-derived one).
+
+**Verified live:** the sample bank loads as 28 actions (1 retired, left out) with 50 treatments, 27 conditions and 3 contact policies; the scan compares 21 matched actions on 144 checks (30 Same, 4 Different, 46 Missing in bank, 64 Extra in bank): for example DTI 36 versus 45, an applicability operator difference, and the 7 versus 30 day suppression. Coverage is 5 covered, 16 partial, 88 missing. The calculator valuation and financial section still show. No console errors.
+
+**Note:** most reference treatments in the master carry no message text, link or image, so treatment differences are mainly missing or extra channels rather than missing content.
+
+---
+
+## 157. Gap Scan Review Screen (Confirm or Change Each Automatic Match)
+
+**Asked:** "Lets build the review screen." The matcher is automatic, so a CDH specialist needs to confirm or correct each match, and every figure should follow their decision.
+
+**What was added**
+
+- `js/gap-scan-engine.js`: each action row now carries `candidates` (top 3 `[bank action name, score]`, score ≥ 0.3) and the result carries `bankActions` (the bank's catalog, used to fill the re-pair list).
+- `gap-scan-report.html`: new section **Review matches** (`#sec-review`, between the top-actions and treatments/policies sections). One row per reference action with the automatic result, a Coverage selector (Covered / Partial / Missing), a Bank action selector (re-pair), a free-text note and a Confirmed checkbox. Row edge: orange = changed, green = confirmed.
+  - Filter: "Worth a check" (default: the Top 10 actions to build first (`TOPSET`, taken from `M.top`, because their "not built" claim carries the most value and most have no close candidate), partial matches, covered with match score < 0.8, missing with a candidate ≥ 0.4; 36 of 109 in the sample run), All, Not reviewed, Reviewed, Changed; plus a search box. The list is capped at 150 rows.
+  - `model()` applies decisions (`DEC[action_id|action]`) over coverage, bank action and gap note, so the KPIs, charts, value, financial impact and the action tables all follow. Setting Missing clears the bank action; choosing a bank action on a Missing row makes it Covered; clearing the bank action makes it Missing. Extra row fields: `auto_coverage`, `auto_bank`, `changed`, `review`, `reviewer_note`.
+  - A "Review" column in All actions and a "N of M matches reviewed, K changed" chip in the header line.
+  - Decisions are kept in `localStorage` under `irea-gapscan-review:<bank>|<reference>|<action count>` (try/catch, so blocked storage only loses persistence). Export review (CSV) writes `irea_gap_scan_review_<bank>.csv` (action_id, action, auto and final coverage and bank action, review_status, reviewer_note, values); Import review reads it back (needs `action_id` and `review_status`); Clear review asks for confirmation.
+  - Rule (treatment / policy) checks were compared against the automatic match, so actions whose bank action was changed (`REPAIRED`) are left out of that section and a note says how many.
+  - Methodology gets a "Review" bullet.
+
+**Verified (local server, sample bank workbook, built-in browser):** 27 of 109 actions listed as "Worth a check"; re-pairing one missing action to a bank action moved the headline from Missing 88 to 87 and Covered 5 to 6, cut Missing value from $6.7M to $6.4M, showed "1 of 109 matches reviewed, 1 changed" in the header, and set the row to Covered with the orange edge. Export contained the changed row with `Changed`. Re-running the scan restored the decision from storage; Clear review returned to 0 changed. No console errors. In a very narrow pane (253 px) two existing filter selects (`#f-journey`, `#f-dstatus`) overflow; the Review section itself does not.
+
+**Not covered:** the review is per browser (no shared store); When rules still have no data source; a re-paired action has no rule comparison.
+
 ---
 
 *This document reflects the state of the project as of the end of this session. Verify current file contents directly before making further changes — several fixes in this session were themselves responses to earlier assumptions (§3.4's CORS note, §1's byte-identical convention) turning out to be stale or environment-specific, not permanent facts about this app.*

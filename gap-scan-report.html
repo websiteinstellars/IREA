@@ -77,6 +77,10 @@
   details li { margin: 6px 0; }
   section { margin-top: 16px; }
   footer { margin-top: 28px; font-size: 12px; color: var(--ink-3); }
+  .rv-table td input[type=text], .rv-table td select { max-width: 230px; width: 100%; }
+  .rv-table td input[type=checkbox] { width: 18px; height: 18px; }
+  tr.rv-changed td:first-child { box-shadow: inset 3px 0 0 var(--partial); }
+  tr.rv-done td:first-child { box-shadow: inset 3px 0 0 var(--covered); }
   @media (max-width: 520px) { .two { grid-template-columns: 1fr; } h1 { font-size: 26px; } .kpi .v { font-size: 28px; } }
   @media print {
     body { background: #fff; }
@@ -111,6 +115,13 @@
 
   <div class="grid kpis" id="kpis"></div>
 
+  <section class="card" id="sec-fin" hidden>
+    <h2>Financial impact of the gaps</h2>
+    <p class="sub">The missing and partial actions valued with the iREA for Banks Value Calculator: Low, Base and High scenarios, less the portfolio overlap discount, over three years.</p>
+    <div class="tw"><table id="tb-fin"></table></div>
+    <ul id="fin-notes" class="sub" style="margin:12px 0 0;padding-left:18px"></ul>
+  </section>
+
   <div class="grid two">
     <section class="card" id="sec-value">
       <h2>Where the missing value sits</h2>
@@ -139,6 +150,25 @@
     <h2>Top 10 actions to build first</h2>
     <p class="sub">Ranked by missing annual value (P50). "Bank today" is the closest existing bank action and what it lacks.</p>
     <div class="tw"><table id="tb-top"></table></div>
+  </section>
+
+  <section class="card" id="sec-review">
+    <h2>Review matches</h2>
+    <p class="sub">The matcher is automatic, so each match is a lead. Confirm it, change its coverage, re-pair it with another bank action, or add a note. Every figure on this page follows your decisions. They are kept in this browser, and you can export them as a CSV and import them again.</p>
+    <p class="sub" id="rv-progress"></p>
+    <div class="filters noprint">
+      <select id="rv-filter">
+        <option value="todo" selected>Worth a check</option><option value="all">All actions</option>
+        <option value="unreviewed">Not reviewed yet</option><option value="reviewed">Reviewed</option><option value="changed">Changed</option>
+      </select>
+      <input id="rv-q" type="search" placeholder="Search actions or bank actions">
+      <button id="rv-export">Export review (CSV)</button>
+      <button id="rv-import">Import review</button><input id="rv-file" type="file" accept=".csv,text/csv" hidden>
+      <button id="rv-clear">Clear review</button>
+      <span class="count" id="rv-count"></span>
+    </div>
+    <p class="sub" id="rv-msg" aria-live="polite"></p>
+    <div class="tw rv-table"><table id="tb-review"></table></div>
   </section>
 
   <section class="card" id="sec-detail">
@@ -198,7 +228,8 @@
       <summary>How these numbers are made</summary>
       <ul>
         <li><b>Coverage.</b> A rule-based matcher compares each uploaded bank CDH action with the reference CDH's actions (by default this site's own Pega CDH) on wording, using banking synonyms (for example FD, CD and time deposit count as the same thing). Covered = an equivalent exists; Partial = it exists but is missing channels, a suitability check, part of the audience, or only loosely matches by name; Missing = none. The matcher is automatic, so treat each match as a lead to confirm, not a verdict. Channels, suitability and audience are only judged when both datasets provide them.</li>
-        <li><b>Value.</b> Each reference action is priced from an editable assumptions table: customers it can reach, response-rate range, and annual value per converted customer. Each range is sampled 2,000 times; P10 is the cautious case, P50 the most likely, P90 the optimistic case. The defaults are placeholders, not the bank's real figures. Values are annual.</li>
+        <li><b>Review.</b> Each match can be confirmed, changed or re-paired in the Review matches section. A changed match replaces the automatic coverage, bank action and gap note everywhere on this page (counts, charts, value, the financial impact and the action table). The treatment and policy comparison was made against the automatic match, so actions you re-pair are left out of it. Decisions are stored in this browser for the same bank and reference, and can be exported and imported as a CSV.</li>
+        <li id="how-value"><b>Value.</b> Each reference action is priced from an editable assumptions table: customers it can reach, response-rate range, and annual value per converted customer. Each range is sampled 2,000 times; P10 is the cautious case, P50 the most likely, P90 the optimistic case. The defaults are placeholders, not the bank's real figures. Values are annual.</li>
         <li><b>Totals</b> add up action-level values, so the P10 and P90 totals are wider than a combined simulation would give.</li>
         <li><b>Partial actions</b> count part of their value as missing; change the share with the control at the top.</li>
         <li><b>Treatments, policies and contact rules.</b> When the bank file is a Pega action catalog export, every matched pair is also compared on its treatments (a live treatment per channel, and whether it carries message text, subject, link and image), its eligibility, suitability and applicability conditions (matched by customer field, then by operator and value) and its contact policies (trigger and suppression period). Pega When rules are not in the catalog export and are not compared.</li>
@@ -265,13 +296,21 @@
   // ---------- model
   function model() {
     var rows = DATA.actions.map(function (r) {
-      var share = r.coverage === 'Missing' ? 1 : (r.coverage === 'Partial' ? state.share : 0);
+      // review decisions override the automatic coverage, pairing and gap note
+      var d = DEC[rkey(r)], cov = r.coverage, bank = r.bank_action || '', note = r.gap_note || '';
+      if (d) { if (d.coverage) cov = d.coverage; if (d.bank !== undefined) bank = d.bank; }
+      if (cov === 'Missing') bank = '';
+      var changed = cov !== r.coverage || bank !== (r.bank_action || '');
+      if (changed) note = cov === 'Partial' ? 'marked partial in review' : '';
+      var share = cov === 'Missing' ? 1 : (cov === 'Partial' ? state.share : 0);
       var priced = r.scan_status === 'Evaluated';
       var m = function (v) { return priced ? Math.round(num(v) * share) : 0; };
       return Object.assign({}, r, {
+        coverage: cov, bank_action: bank, gap_note: note, auto_coverage: r.coverage, auto_bank: r.bank_action || '', auto_note: r.gap_note || '',
+        changed: changed, review: d && (changed || d.reviewed) ? (changed ? 'Changed' : 'Confirmed') : '', reviewer_note: d && d.note ? d.note : '',
         priced: priced, missing_p10: m(r.value_p10_usd), missing_p50: m(r.value_p50_usd), missing_p90: m(r.value_p90_usd),
-        treat: priced && r.coverage !== 'Covered' ? num(r.customers_to_treat) : null,
-        bank_today: r.coverage === 'Missing' ? 'Not built' : (r.gap_note ? r.bank_action + ': ' + r.gap_note : r.bank_action)
+        treat: priced && cov !== 'Covered' ? num(r.customers_to_treat) : null,
+        bank_today: cov === 'Missing' ? 'Not built' : (note ? bank + ': ' + note : bank)
       });
     });
     var sum = function (arr, f) { return arr.reduce(function (a, r) { return a + r[f]; }, 0); };
@@ -310,6 +349,73 @@
     };
   }
 
+  // ---------- financial impact (iREA Value Calculator)
+  // Same maths as the calculator's Business Case sheet, applied to the gaps: the gap's Wave 1 and
+  // Wave 2 run-rate value (Low / Base / High scenario = P10 / P50 / P90) less the overlap discount,
+  // Year 1 at the wave realisation rates, Years 2 and 3 at run-rate, against the package cost.
+  function financeModel(M) {
+    var F = DATA.financial; if (!F) return null;
+    var s = F.settings, keep = 1 - s.overlap, out = {};
+    [['Low', 'missing_p10'], ['Base', 'missing_p50'], ['High', 'missing_p90']].forEach(function (sc) {
+      var w1 = 0, w2 = 0;
+      M.rows.forEach(function (r) {
+        if (!r.calc_wave || !r.priced) return;
+        if (String(r.calc_wave) === '1') w1 += r[sc[1]]; else w2 += r[sc[1]];
+      });
+      var y1 = (w1 * s.wave1Real + w2 * s.wave2Real) * keep, y2 = (w1 + w2) * keep;
+      var cost1 = s.price + s.licence + s.run, cost = cost1 + 2 * (s.licence + s.run), benefit = y1 + 2 * y2;
+      out[sc[0]] = { w1: w1, w2: w2, gross: w1 + w2, discount: -(w1 + w2) * s.overlap, runRate: y2, y1: y1, y2: y2, y3: y2, benefit: benefit,
+        cost: cost, net: benefit - cost, roi: cost ? (benefit - cost) / cost : null, payback: y1 > 0 ? cost1 / (y1 / 12) : null };
+    });
+    return out;
+  }
+  function renderFinance(M) {
+    var sec = $('sec-fin'), F = DATA.financial, FM = financeModel(M);
+    sec.hidden = !FM;
+    if (!FM) return;
+    var cur = F.currency && F.currency !== 'USD' ? F.currency + ' ' : '$', s = F.settings;
+    var mon = function (v) { var a = Math.abs(v), t = a >= 1e6 ? (a / 1e6).toFixed(2) + 'M' : (a >= 1e3 ? Math.round(a / 1e3) + 'K' : String(Math.round(a))); return (v < 0 ? '−' : '') + cur + t; };
+    var pct = function (v) { return Math.round(v * 100) + '%'; };
+    var rows = [
+      ['Gap value, annual run-rate before overlap', 'gross', mon, 'b'],
+      ['  of which Wave 1 (go-live actions)', 'w1', mon],
+      ['  of which Wave 2', 'w2', mon],
+      ['Portfolio overlap discount (' + pct(s.overlap) + ')', 'discount', mon],
+      ['Run-rate value after overlap', 'runRate', mon, 'b'],
+      ['Year 1 benefit (Wave 1 at ' + pct(s.wave1Real) + ', Wave 2 at ' + pct(s.wave2Real) + ')', 'y1', mon],
+      ['Year 2 benefit', 'y2', mon], ['Year 3 benefit', 'y3', mon],
+      ['3-year benefit', 'benefit', mon, 'b'],
+      ['3-year cost (iREA package' + (s.licence + s.run ? ', licence and run cost' : '') + ')', 'cost', function (v) { return mon(-v); }],
+      ['3-year net benefit', 'net', mon, 'b'],
+      ['3-year ROI (net benefit ÷ cost)', 'roi', function (v) { return v === null ? 'n/a' : v.toFixed(1) + 'x'; }],
+      ['Payback on Year-1 costs, at the Year-1 benefit rate', 'payback', function (v) { return v === null ? 'n/a' : (v < 1 ? '<1' : v.toFixed(1)) + ' months'; }]
+    ];
+    var tb = $('tb-fin'); tb.replaceChildren();
+    var thead = el('thead'), htr = el('tr');
+    ['', 'Low (P10)', 'Base (P50)', 'High (P90)'].forEach(function (h, i) { htr.appendChild(el('th', { class: i ? 'num nosort' : 'nosort' }, h)); });
+    thead.appendChild(htr); tb.appendChild(thead);
+    var tbody = el('tbody');
+    rows.forEach(function (r) {
+      var tr = el('tr');
+      tr.appendChild(el('td', r[3] ? { style: 'font-weight:600' } : null, r[0].replace(/^ {2}/, '   ')));
+      ['Low', 'Base', 'High'].forEach(function (sc) { tr.appendChild(el('td', r[3] ? { class: 'num', style: 'font-weight:600' } : { class: 'num' }, r[2](FM[sc][r[1]]))); });
+      tbody.appendChild(tr);
+    });
+    tb.appendChild(tbody);
+    var valued = M.rows.filter(function (r) { return r.calc_wave && r.coverage !== 'Covered'; }).length;
+    var unvalued = M.rows.filter(function (r) { return r.value_basis === 'not-in-calculator' && r.coverage !== 'Covered'; }).length;
+    var addedN = M.rows.filter(function (r) { return r.calc_added && r.coverage !== 'Covered'; }).length;
+    var notes = [
+      valued + ' gap action' + (valued === 1 ? '' : 's') + ' valued with the calculator' + (unvalued ? '; ' + unvalued + ' more gap action' + (unvalued === 1 ? ' has' : 's have') + ' no equivalent in the calculator and ' + (unvalued === 1 ? 'is' : 'are') + ' not valued' : '') + '.',
+      F.mapped + ' of the calculator’s ' + F.calculatorActions + ' actions match a reference action' + (F.unmatchedCalculatorActions.length ? '; ' + F.unmatchedCalculatorActions.length + ' do not and are left out (they cannot be a gap here).' : '.'),
+      (addedN ? addedN + ' of the valued gap action' + (addedN === 1 ? ' is a row' : 's are rows') + ' added to the calculator beyond its ' + F.mvpActions + ' MVP actions; their inputs are illustrative estimates by analogy with the closest MVP action, so confirm them with the bank.' : 'All valued gap actions are among the calculator’s own ' + F.mvpActions + ' MVP actions.'),
+      'Partial actions count ' + pct(state.share) + ' of their value (control at the top). Waves follow the calculator’s ranking of all its ' + F.calculatorActions + ' actions by Base net value (top ' + s.wave1Count + ' = Wave 1).',
+      'Scenario: Low, Base and High scale each action’s uplift by ' + s.mult.Low + 'x, ' + s.mult.Base + 'x and ' + s.mult.High + 'x. Customer bases: ' + int(s.retailBase) + ' retail, ' + int(s.smeBase) + ' SME. Source: ' + F.source + '.',
+      'The package price is the cost of building the whole iREA scope, so this ROI is a guide for how large the gap is against that investment, not a quote for closing only these gaps. Inputs are illustrative until the bank’s own figures replace them.'
+    ];
+    $('fin-notes').replaceChildren.apply($('fin-notes'), notes.map(function (n) { return el('li', null, n); }));
+  }
+
   // ---------- header + KPIs
   function renderHead(M) {
     $('title').textContent = 'Missed CDH opportunities: ' + DATA.bank;
@@ -321,8 +427,10 @@
     if (h.topJ) parts.push([', most of it in '], [h.topJ, 1]);
     parts.push(['.']);
     parts.forEach(function (p) { lede.appendChild(p[1] ? el('b', null, String(p[0])) : document.createTextNode(p[0])); });
-    $('meta').textContent = 'Scan date ' + DATA.scanDate + ' · values scaled to ' + int(DATA.customers) + ' customers · annual, incremental against a control group' +
+    $('meta').textContent = 'Scan date ' + DATA.scanDate + (DATA.financial ? ' · valued with the iREA Value Calculator on ' + int(DATA.financial.settings.retailBase) + ' retail and ' + int(DATA.financial.settings.smeBase) + ' SME customers' : ' · values scaled to ' + int(DATA.customers) + ' customers') + ' · annual, incremental against a control group' +
       (DATA.reference ? ' · compared against ' + DATA.reference : '');
+    var rvN = M.rows.filter(function (r) { return r.review; }).length;
+    if (rvN) $('meta').textContent += ' · ' + rvN + ' of ' + M.h.total + ' matches reviewed, ' + M.rows.filter(function (r) { return r.changed; }).length + ' changed';
     var b = $('banner');
     b.hidden = !DATA.synthetic;
     b.textContent = 'Synthetic demo: a made-up bank, synthetic customers and placeholder response rates and finance inputs. Do not quote these figures as real.';
@@ -333,7 +441,7 @@
       ['Fully covered', String(h.covered), 'of ' + h.total + ' iREA actions'],
       ['Partly covered', String(h.partial), 'exist, but narrower or fewer channels'],
       ['Missing', String(h.missing), h.unpriced + ' need data before they can be priced']
-    ].forEach(function (t) {
+    ].concat(DATA.financial ? [['Net run-rate after overlap', money(h.p50 * (1 - DATA.financial.settings.overlap)), 'Base scenario, ' + Math.round(DATA.financial.settings.overlap * 100) + '% overlap discount']] : []).forEach(function (t) {
       var c = el('div', { class: 'card kpi' + (t[3] ? ' ' + t[3] : '') });
       c.appendChild(el('div', { class: 'k' }, t[0]));
       c.appendChild(el('div', { class: 'v' }, t[1]));
@@ -485,6 +593,7 @@
     { key: 'bank_today', label: 'Bank today' },
     { key: 'treat', label: 'Customers to treat', num: true, render: function (r) { return r.treat === null ? '—' : int(r.treat); } },
     { key: 'missing_p50', label: 'Missing value / yr', num: true, render: function (r) {
+      if (r.coverage !== 'Covered' && r.priced && r.value_basis === 'not-in-calculator') return el('span', { class: 'muted', title: 'This action has no row in the calculator, so it has no value here' }, 'Not in calculator');
       if (r.coverage !== 'Covered' && r.priced && r.value_basis === 'engagement-only') return el('span', { class: 'muted', title: 'Engagement action: its value shows up in other outcomes' }, 'Not valued');
       return r.coverage === 'Covered' ? '\u2014' : money(r.missing_p50); } }
   ];
@@ -513,8 +622,9 @@
       { key: 'coverage', label: 'Coverage', render: function (r) { return status(r.coverage); } },
       ACTION_COLS[3],
       { key: 'scan_status', label: 'Priced', render: function (r) { return r.priced ? 'Yes' : 'Needs data'; } },
-      ACTION_COLS[4], ACTION_COLS[5],
-      { key: 'detail_gaps', label: 'Rule gaps', num: true, render: function (r) { return r.detail_gaps === '' || r.detail_gaps == null ? '\u2014' : r.detail_gaps; } }];
+      ACTION_COLS[4], ACTION_COLS[5]].concat(DATA.financial ? [{ key: 'calc_wave', label: 'Wave', num: true, render: function (r) { return r.calc_wave ? 'Wave ' + r.calc_wave : '\u2014'; } }] : []).concat([
+      { key: 'review', label: 'Review', render: function (r) { return r.review ? el('span', { class: 'pill' }, r.review) : '\u2014'; } },
+      { key: 'detail_gaps', label: 'Rule gaps', num: true, render: function (r) { return r.detail_gaps === '' || r.detail_gaps == null ? '\u2014' : r.detail_gaps; } }]);
     table($('tb-all'), cols, rows, true);
     $('f-count').textContent = rows.length + ' of ' + M.rows.length + ' actions';
 
@@ -563,9 +673,20 @@
     });
   }
 
+  // Rule checks were made against the automatic match: leave out actions whose bank action was changed in review.
+  function allDetails() { return (DATA.details || []).filter(function (d) { return !REPAIRED[d.action_id + '|' + d.action]; }); }
+  function detailSummaryNow() {
+    var S = DATA.detailSummary; if (!S || !S.available) return S;
+    var inDetail = {}; (DATA.details || []).forEach(function (d) { var k = d.action_id + '|' + d.action; if (REPAIRED[k]) inDetail[k] = 1; });
+    var n = Object.keys(inDetail).length; if (!n) return S;
+    var areas = {};
+    DAREAS.forEach(function (a) { areas[a] = {}; DSTAT.forEach(function (st) { areas[a][st] = 0; }); });
+    allDetails().forEach(function (d) { if (areas[d.area]) areas[d.area][d.status] += 1; });
+    return { available: true, comparedPairs: S.comparedPairs - n, areas: areas, excluded: n };
+  }
   function detailRows() {
     var q = $('f-dq').value.trim().toLowerCase(), area = $('f-darea').value, stat = $('f-dstatus').value;
-    return (DATA.details || []).filter(function (d) {
+    return allDetails().filter(function (d) {
       if (area && d.area !== area) return false;
       if (stat === 'attention' ? !(d.status === 'Different' || d.status === 'Missing in bank') : (stat && d.status !== stat)) return false;
       return !q || (d.action + ' ' + d.bank_action + ' ' + d.reference + ' ' + d.bank + ' ' + d.note).toLowerCase().indexOf(q) >= 0;
@@ -573,7 +694,7 @@
   }
 
   function renderDetail() {
-    var S = DATA.detailSummary, body = $('detail-body'), sub = $('detail-sub');
+    var S = detailSummaryNow(), body = $('detail-body'), sub = $('detail-sub');
     if (!S || !S.available) {
       body.hidden = true;
       sub.textContent = DATA.details && DATA.details.length === 0 && S
@@ -582,7 +703,8 @@
       return;
     }
     body.hidden = false;
-    sub.textContent = 'For the ' + S.comparedPairs + ' matched actions: do the treatments (channels and content), the eligibility, suitability and applicability rules, and the contact policies line up? Rules are matched by customer field. Pega When rules are not part of the catalog export and are not compared.';
+    sub.textContent = 'For the ' + S.comparedPairs + ' matched actions: do the treatments (channels and content), the eligibility, suitability and applicability rules, and the contact policies line up? Rules are matched by customer field. Pega When rules are not part of the catalog export and are not compared.' +
+      (S.excluded ? ' ' + S.excluded + ' action' + (S.excluded === 1 ? ' was' : 's were') + ' re-paired in review and left out, because its rules were compared against the automatic match.' : '');
     chartDetail(S);
     var rows = detailRows();
     table($('tb-detail'), [
@@ -596,7 +718,7 @@
       { key: 'bank', label: 'Bank' },
       { key: 'note', label: 'Note' }
     ], rows.slice(0, 400), false);
-    $('f-dcount').textContent = rows.length + ' of ' + DATA.details.length + ' checks' + (rows.length > 400 ? ' (first 400 shown; export for all)' : '');
+    $('f-dcount').textContent = rows.length + ' of ' + allDetails().length + ' checks' + (rows.length > 400 ? ' (first 400 shown; export for all)' : '');
   }
   $('export-detail').addEventListener('click', function () {
     var cols = ['action_id', 'action', 'journey', 'bank_action', 'area', 'status', 'reference', 'bank', 'note'];
@@ -606,6 +728,149 @@
   });
   ['f-darea', 'f-dstatus'].forEach(function (id) { $(id).addEventListener('change', renderDetail); });
   $('f-dq').addEventListener('input', renderDetail);
+
+  // ---------- review: confirm or change the automatic matches
+  // A CDH specialist can confirm each match, change its coverage, re-pair it with another bank action
+  // and add a note. Decisions feed every figure on this page, are kept in this browser (localStorage,
+  // per bank and reference) and can be exported to / imported from a CSV.
+  var DEC = {};        // decisions: key -> {coverage, bank, note, reviewed}
+  var rvKeep = {};     // rows edited in this view stay listed until the filter changes
+  var REPAIRED = {};   // rows whose bank action was changed (their rule comparison is no longer valid)
+  var RV_LIMIT = 150;
+  var rkey = function (r) { return r.action_id + '|' + r.action; };
+  function storeKey() { return 'irea-gapscan-review:' + DATA.bank + '|' + (DATA.reference || '') + '|' + DATA.actions.length; }
+  function loadDec() { DEC = {}; rvKeep = {}; try { var t = window.localStorage.getItem(storeKey()); if (t) DEC = JSON.parse(t) || {}; } catch (e) { DEC = {}; } }
+  function saveDec() { try { window.localStorage.setItem(storeKey(), JSON.stringify(DEC)); } catch (e) { /* storage blocked: decisions last for this view only */ } }
+
+  function bankNames() {
+    var set = {};
+    if (DATA.bankActions) DATA.bankActions.forEach(function (b) { if (!b.inactive) set[b.name] = 1; });
+    else {
+      DATA.actions.forEach(function (r) { if (r.bank_action) set[r.bank_action] = 1; });
+      (DATA.bankOnly || []).forEach(function (b) { set[String(b.name).replace(/ \((Retired|Inactive|Never)[^)]*\)$/i, '')] = 1; });
+    }
+    return Object.keys(set).sort(function (a, b) { return a.localeCompare(b); });
+  }
+
+  // Worth a second look: partial matches, covered ones with a weaker name match, missing ones with a close candidate.
+  var TOPSET = {};     // the Top 10 actions to build first: their "not built" claim carries the most value
+  function needsReview(r) {
+    if (r.review) return false;
+    if (TOPSET[rkey(r)]) return true;
+    if (r.auto_coverage === 'Partial') return true;
+    if (r.auto_coverage === 'Covered') return num(r.match_score) < 0.8;
+    return !!(r.candidates && r.candidates.length && r.candidates[0][1] >= 0.4);
+  }
+
+  function setDec(r, patch) {
+    var k = rkey(r), d = DEC[k] || {};
+    Object.keys(patch).forEach(function (f) { d[f] = patch[f]; });
+    if (d.coverage === undefined && d.bank === undefined && !d.note && !d.reviewed) delete DEC[k]; else DEC[k] = d;
+    rvKeep[k] = 1; saveDec(); render();
+  }
+
+  function renderReview(M) {
+    var rows = M.rows, total = rows.length;
+    TOPSET = {}; (M.top || []).forEach(function (r) { TOPSET[rkey(r)] = 1; });
+    var done = rows.filter(function (r) { return r.review; }).length, changed = rows.filter(function (r) { return r.changed; }).length;
+    var todo = rows.filter(needsReview).length;
+    $('rv-progress').textContent = done + ' of ' + total + ' actions reviewed · ' + changed + ' changed from the automatic result · ' + todo + ' still worth a check (the Top 10 to build first, partial or weaker matches, and missing actions with a close candidate).';
+    var f = $('rv-filter').value, q = $('rv-q').value.trim().toLowerCase();
+    var list = rows.filter(function (r) {
+      if (q && (r.action + ' ' + r.bank_action + ' ' + r.auto_bank + ' ' + r.action_id).toLowerCase().indexOf(q) < 0) return false;
+      if (f === 'todo') return needsReview(r) || rvKeep[rkey(r)];
+      if (f === 'unreviewed') return !r.review;
+      if (f === 'reviewed') return !!r.review;
+      if (f === 'changed') return r.changed;
+      return true;
+    }).sort(function (a, b) { return (num(b.value_p50_usd) - num(a.value_p50_usd)) || a.action.localeCompare(b.action); });
+    $('rv-count').textContent = list.length + ' of ' + total + ' actions' + (list.length > RV_LIMIT ? ' (first ' + RV_LIMIT + ' shown; filter or search for the rest)' : '');
+    var names = bankNames();
+
+    table($('tb-review'), [
+      { key: 'action', label: 'Reference action', render: function (r) {
+        var d = el('div'); d.appendChild(el('b', null, r.action)); d.appendChild(el('div', { class: 'muted' }, shortJ(r.journey))); return d; } },
+      { key: 'auto', label: 'Automatic result', render: function (r) {
+        var d = el('div'); d.appendChild(status(r.auto_coverage));
+        var txt = r.auto_coverage === 'Missing'
+          ? (r.candidates && r.candidates.length ? 'Closest: ' + r.candidates.map(function (c) { return c[0] + ' (' + c[1].toFixed(2) + ')'; }).join(', ') : 'No close candidate')
+          : r.auto_bank + (r.match_score ? ' (' + r.match_score + ')' : '') + (r.auto_note ? ' · ' + r.auto_note : '');
+        d.appendChild(el('div', { class: 'muted' }, txt)); return d; } },
+      { key: 'cov', label: 'Coverage', render: function (r) {
+        var s = el('select', { 'aria-label': 'Coverage for ' + r.action });
+        COV.forEach(function (c) { var o = el('option', { value: c }, c); if (c === r.coverage) o.selected = true; s.appendChild(o); });
+        s.addEventListener('change', function () {
+          var p = { coverage: s.value, reviewed: true };
+          if (s.value === 'Missing') p.bank = '';
+          else if (!r.bank_action && r.candidates && r.candidates.length) p.bank = r.candidates[0][0];
+          setDec(r, p);
+        });
+        return s; } },
+      { key: 'bank', label: 'Bank action', render: function (r) {
+        var s = el('select', { 'aria-label': 'Bank action for ' + r.action }), cur = r.bank_action || '';
+        s.appendChild(el('option', { value: '' }, '— none —'));
+        var all = names.slice(); if (cur && all.indexOf(cur) < 0) all.push(cur);
+        all.forEach(function (n) { var o = el('option', { value: n }, n); if (n === cur) o.selected = true; s.appendChild(o); });
+        s.addEventListener('change', function () {
+          var p = { bank: s.value, reviewed: true };
+          if (s.value === '') p.coverage = 'Missing'; else if (r.coverage === 'Missing') p.coverage = 'Covered';
+          setDec(r, p);
+        });
+        return s; } },
+      { key: 'note', label: 'Note', render: function (r) {
+        var i = el('input', { type: 'text', value: r.reviewer_note || '', placeholder: 'Reason or evidence', 'aria-label': 'Note for ' + r.action });
+        i.addEventListener('change', function () { setDec(r, { note: i.value.trim() }); });
+        return i; } },
+      { key: 'ok', label: 'Confirmed', render: function (r) {
+        var c = el('input', { type: 'checkbox', 'aria-label': 'Confirmed: ' + r.action }); c.checked = !!r.review;
+        c.addEventListener('change', function () { setDec(r, { reviewed: c.checked }); });
+        return c; } }
+    ], list.slice(0, RV_LIMIT), false);
+    // mark each row: changed (orange edge) / confirmed (green edge)
+    var trs = $('tb-review').querySelectorAll('tbody tr');
+    list.slice(0, RV_LIMIT).forEach(function (r, i) { if (trs[i]) trs[i].className = r.changed ? 'rv-changed' : (r.review ? 'rv-done' : ''); });
+  }
+
+  function csvCell2(v) { var s = v === null || v === undefined ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+  $('rv-export').addEventListener('click', function () {
+    var M = model();
+    var cols = ['action_id', 'action', 'journey', 'pillar', 'auto_coverage', 'coverage', 'auto_bank_action', 'bank_action', 'match_score', 'review_status', 'reviewer_note', 'scan_status', 'value_p10_usd', 'value_p50_usd', 'value_p90_usd'];
+    var lines = [cols.join(',')].concat(M.rows.map(function (r) {
+      var o = Object.assign({}, r, { auto_bank_action: r.auto_bank, review_status: r.changed ? 'Changed' : (r.review ? 'Confirmed' : 'Unreviewed') });
+      return cols.map(function (c) { return csvCell2(o[c]); }).join(',');
+    }));
+    var a = el('a', { href: URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' })), download: 'irea_gap_scan_review_' + DATA.bank.replace(/\W+/g, '_') + '.csv' });
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  $('rv-import').addEventListener('click', function () { $('rv-file').click(); });
+  $('rv-file').addEventListener('change', function (ev) {
+    var file = ev.target.files[0]; ev.target.value = '';
+    if (!file) return;
+    file.text().then(function (text) {
+      var rows = parseCSV(text), byKey = {}, applied = 0;
+      DATA.actions.forEach(function (r) { byKey[rkey(r)] = r; });
+      if (!rows.length || !('action_id' in rows[0]) || !('review_status' in rows[0])) { $('rv-msg').textContent = 'That file is not a review export (it needs action_id and review_status columns).'; return; }
+      rows.forEach(function (x) {
+        var r = byKey[x.action_id + '|' + x.action];
+        if (!r || x.review_status === 'Unreviewed') return;
+        var d = { reviewed: true };
+        if (x.coverage && x.coverage !== r.coverage) d.coverage = x.coverage;
+        if (x.bank_action !== undefined && x.bank_action !== (r.bank_action || '')) d.bank = x.bank_action;
+        if (x.reviewer_note) d.note = x.reviewer_note;
+        DEC[rkey(r)] = d; applied++;
+      });
+      saveDec(); rvKeep = {};
+      $('rv-msg').textContent = 'Imported ' + applied + ' reviewed action' + (applied === 1 ? '' : 's') + ' from ' + file.name + '.';
+      render();
+    });
+  });
+  $('rv-clear').addEventListener('click', function () {
+    if (!Object.keys(DEC).length) { $('rv-msg').textContent = 'There is no review to clear.'; return; }
+    if (!window.confirm('Clear all review decisions for this scan? The automatic result comes back.')) return;
+    DEC = {}; rvKeep = {}; saveDec(); $('rv-msg').textContent = 'Review cleared.'; render();
+  });
+  $('rv-filter').addEventListener('change', function () { rvKeep = {}; render(); });
+  $('rv-q').addEventListener('input', function () { rvKeep = {}; render(); });
 
   // ---------- export / load
   function csvCell(v) { var s = v === null || v === undefined ? '' : String(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
@@ -641,7 +906,7 @@
       var need = ['action', 'journey', 'pillar', 'coverage', 'scan_status', 'value_p50_usd'];
       var miss = need.filter(function (k) { return !rows.length || !(k in rows[0]); });
       if (miss.length) { alert('This CSV is missing columns: ' + miss.join(', ') + '. Use dashboard_gap_actions.csv from apply_review.py.'); return; }
-      DATA.actions = rows; DATA.bankOnly = [];
+      DATA.actions = rows; DATA.bankOnly = []; DATA.bankActions = null; loadDec();
       var name = prompt('Bank name for this scan?', file.name.replace(/\.csv$/i, ''));
       if (name) DATA.bank = name;
       DATA.synthetic = false;
@@ -659,7 +924,8 @@
   var lastW = 0, timer = null;
   function render() {
     var M = model();
-    renderHead(M); chartValue(M); chartCoverage(M); chartTier(M); renderTables(M); renderDetail();
+    REPAIRED = {}; M.rows.forEach(function (r) { if (r.changed && r.bank_action !== r.auto_bank) REPAIRED[rkey(r)] = 1; });
+    renderHead(M); chartValue(M); chartCoverage(M); chartTier(M); renderTables(M); renderReview(M); renderDetail(); renderFinance(M);
     lastW = window.innerWidth;
   }
   window.addEventListener('resize', function () {
@@ -672,12 +938,20 @@
   // js/gap-scan-engine.js: same shape as the embedded sample DATA above.
   window.loadScanData = function (d) {
     DATA = d;
+    if (d.financial) {
+      $('how-value').textContent = 'Value. Each reference action that matches an action in the iREA for Banks Value Calculator (its 82 MVP actions plus the added actions for the rest of the master catalog) is valued with its own formula: eligible customers x channel reach x uplift x scenario multiplier x value per outcome, less contact cost and incentive cost. Low, Base and High scenarios are shown as P10, P50 and P90. Actions with no equivalent in the calculator are not valued. The Financial impact section applies the calculator\u2019s overlap discount, wave realisation and 3-year case to the gaps. The calculator\u2019s defaults are illustrative, not the bank\u2019s figures. Values are annual.';
+    } else {
+      $('how-value').textContent = 'Value. Each reference action is priced from an editable assumptions table: customers it can reach, response-rate range, and annual value per converted customer. Each range is sampled 2,000 times; P10 is the cautious case, P50 the most likely, P90 the optimistic case. The defaults are placeholders, not the bank\u2019s real figures. Values are annual.';
+    }
     $('f-journey').replaceChildren(el('option', { value: '' }, 'All journeys'));
     ['f-cov', 'f-tier', 'f-darea'].forEach(function (id) { $(id).value = ''; });
+    $('rv-filter').value = 'todo'; $('rv-q').value = ''; $('rv-msg').textContent = '';
+    loadDec();
     $('f-dstatus').value = 'attention'; $('f-dq').value = '';
     $('f-q').value = '';
     render();
   };
+  loadDec();
   render();
 })();
 </script>

@@ -60,6 +60,7 @@
 <script src="js/data.js"></script>
 <script src="js/irea-master-catalog.js"></script>
 <script src="js/gap-scan-engine.js"></script>
+<script src="js/gap-scan-calculator.js"></script>
 <script>
   /* Gap Scan page: the site shell, the two-dataset upload/run panel, and the
      report (gap-scan-report.html) in a same-origin iframe. The engine
@@ -71,6 +72,9 @@
     refRows: null, refName: "", refWarnings: [], refInfo: null,
     bankRows: null, bankFile: "", bankWarnings: [],
     assumptions: GS.cloneAssumptions(),
+    valuation: "calculator",   // "calculator" (iREA Value Calculator) | "placeholder"
+    calc: window.GapScanCalc.defaults(),
+    calcWarnings: [],
   };
 
   const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -111,7 +115,8 @@
               <p class="gs-hint">The other bank's CDH actions: either its Pega action catalog export (.xlsx, same format as the reference), or a CSV/JSON with one row per action. In a CSV only <b>name</b> is required; issue, group, channels, status, suitability and audience % sharpen the result.</p>
               <input type="file" id="bankFile" accept=".xlsx,.csv,.json,text/csv,application/json">
               <div class="gs-row">
-                <button class="gs-btn" id="useSample" type="button">Use the sample CSV</button>
+                <button class="gs-btn" id="useSampleBank" type="button">Use the sample bank (.xlsx, with policies)</button>
+                <button class="gs-btn" id="useSample" type="button">Use the sample CSV (actions only)</button>
                 <button class="gs-btn" id="useSampleCat" type="button">Use the sample catalog (.xlsx)</button>
                 <button class="gs-link" id="dlTemplate" type="button">Download template</button>
               </div>
@@ -136,11 +141,31 @@
             </div>
           </div>
 
-          <details class="gs-assump">
-            <summary>Valuation assumptions (placeholders, editable)</summary>
-            <p class="gs-hint" style="margin:0.4rem 0 0">Each action is priced as: customers reached × response rate × annual value per converted customer. Ranges are (low, most likely, high) and are sampled 2,000 times for P10 / P50 / P90. These defaults are made-up placeholders, not any bank's real figures; replace them with your own.</p>
-            <div class="gs-wide"><table id="assumpTable"></table></div>
-            <div class="gs-row"><button class="gs-link" id="resetAssump" type="button">Reset to defaults</button></div>
+          <details class="gs-assump" id="valCard">
+            <summary id="valSummary">Valuation model: iREA Value Calculator</summary>
+            <label class="gs-radio" style="margin-top:0.6rem"><input type="radio" name="valMode" value="calculator" checked><span><b>iREA for Banks Value Calculator</b> (default)<br><span class="gs-hint" style="margin:0">The financial impact of each gap comes from the calculator's own formula: its 82 MVP actions plus 46 more added so every action in the master catalog has a value (rows 83 to 128 of the workbook's Action Value sheet). The overlap discount, Wave 1 / Wave 2 realisation and the 3-year business case are applied to the gaps in the report.</span></span></label>
+            <label class="gs-radio"><input type="radio" name="valMode" value="placeholder"><span><b>Simple placeholder ranges</b><br><span class="gs-hint" style="margin:0">The earlier model: reach × response rate × value per customer, sampled 2,000 times. Covers every reference action but uses made-up ranges.</span></span></label>
+
+            <div id="calcBox">
+              <p class="gs-hint" style="margin:0.6rem 0 0">Net value per action per year = eligible customers × channel reach × uplift × scenario × value per outcome − contact cost − incentive cost. The report shows the Low / Base / High scenarios as P10 / P50 / P90. <b>These are the workbook's illustrative defaults, not any bank's figures</b>: edit them below or upload the bank's own filled-in calculator (added rows are recognised by the Pega action id in column Z). The project folder has the workbook, including the added actions: iREA_for_Banks_Value_Calculator.xlsx.</p>
+              <div class="gs-row">
+                <input type="file" id="calcFile" accept=".xlsx,.xls" style="max-width:20rem">
+                <button class="gs-link" id="calcDownload" type="button">Download the inputs as CSV</button>
+                <button class="gs-link" id="calcReset" type="button">Reset to workbook defaults</button>
+              </div>
+              <div class="gs-status" id="calcStatus"></div>
+              <div class="gs-wide"><table id="calcSettings"></table></div>
+              <div class="gs-wide"><table id="calcChannels"></table></div>
+              <details style="margin-top:0.6rem"><summary>Per-action inputs (<span id="calcActCount"></span> actions)</summary>
+                <div class="gs-wide" style="max-height:22rem;overflow:auto"><table id="calcActions"></table></div>
+              </details>
+            </div>
+
+            <div id="placeBox" hidden>
+              <p class="gs-hint" style="margin:0.4rem 0 0">Each action is priced as: customers reached × response rate × annual value per converted customer. Ranges are (low, most likely, high) and are sampled 2,000 times for P10 / P50 / P90. These defaults are made-up placeholders, not any bank's real figures; replace them with your own. Uses the "customers" setting above.</p>
+              <div class="gs-wide"><table id="assumpTable"></table></div>
+              <div class="gs-row"><button class="gs-link" id="resetAssump" type="button">Reset to defaults</button></div>
+            </div>
           </details>
 
           <div class="gs-row" style="margin-top:1.1rem">
@@ -200,6 +225,13 @@
       sheets[n.trim()] = rows.slice(1).filter(function (r) { return r[0] !== "" && r[0] != null; });
     });
     return { sheets: sheets };
+  }
+  async function readXlsxRaw(file) {
+    await loadSheetJs();
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+    const sheets = {};
+    wb.SheetNames.forEach(function (n) { sheets[n.trim()] = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: "" }); });
+    return sheets;
   }
   const isXlsx = (f) => /\.xlsx?$/i.test(f.name);
 
@@ -293,6 +325,16 @@
     } catch (e) { showMsgs(["Could not load the sample file (" + e.message + "). Serve the site over http rather than opening it as a file."], []); }
   });
 
+  // The same 28-action sample bank as the CSV, in the catalog layout, with Treatment Details, Engagement Policies and Contact Policies tabs.
+  $("useSampleBank").addEventListener("click", async function () {
+    try {
+      const res = await fetch("gap-scan-sample-bank-cdh.xlsx", { cache: "no-store" });
+      if (!res.ok) throw new Error("status " + res.status);
+      if (!$("bankName").value) $("bankName").value = "Sample Bank";
+      await acceptBankFile(new File([await res.blob()], "gap-scan-sample-bank-cdh.xlsx"));
+    } catch (e) { showMsgs(["Could not load the sample bank (" + e.message + "). Serve the site over http rather than opening it as a file."], []); }
+  });
+
   $("useSampleCat").addEventListener("click", async function () {
     try {
       const res = await fetch("gap-scan-sample-bank-catalog.xlsx", { cache: "no-store" });
@@ -341,6 +383,63 @@
   }
   $("resetAssump").addEventListener("click", function () { state.assumptions = GS.cloneAssumptions(); renderAssumptions(); });
 
+  /* ---------------- iREA Value Calculator inputs ---------------- */
+  const CALC = window.GapScanCalc;
+  // [key, label, display multiplier]: percentages are shown as whole numbers
+  const SET_FIELDS = [
+    ["retailBase", "Retail customers (active)", 1], ["smeBase", "SME customers (active)", 1],
+    ["overlap", "Portfolio overlap discount %", 100], ["wave1Count", "Actions live at go-live (Wave 1)", 1],
+    ["wave1Real", "Year-1 realisation, Wave 1 %", 100], ["wave2Real", "Year-1 realisation, Wave 2 %", 100],
+    ["price", "iREA package price (one-off)", 1], ["licence", "Pega CDH licence (annual)", 1], ["run", "Annual run / enhancement cost", 1]
+  ];
+  function renderCalc() {
+    const m = state.calc;
+    $("calcSettings").innerHTML = "<thead><tr><th>Assumption</th><th>Value</th></tr></thead><tbody>" +
+      SET_FIELDS.map((f) => "<tr><td>" + f[1] + "</td><td><input type='number' step='any' min='0' data-set='" + f[0] + "' value='" + +(m[f[0]] * f[2]).toFixed(4) + "'></td></tr>").join("") +
+      "<tr><td>Scenario multiplier on uplift (Low / Base / High)</td><td>" + ["Low", "Base", "High"].map((s) => "<input type='number' step='any' min='0' data-mult='" + s + "' value='" + m.mult[s] + "'>").join(" ") + "</td></tr></tbody>";
+    $("calcChannels").innerHTML = "<thead><tr><th>Primary channel</th><th>Reach %</th><th>Cost per contact</th></tr></thead><tbody>" +
+      Object.keys(m.channels).map((c) => "<tr><td>" + esc(c) + "</td><td><input type='number' step='any' min='0' data-ch='" + esc(c) + "' data-f='reach' value='" + +(m.channels[c].reach * 100).toFixed(4) + "'></td><td><input type='number' step='any' min='0' data-ch='" + esc(c) + "' data-f='cost' value='" + m.channels[c].cost + "'></td></tr>").join("") + "</tbody>";
+    $("calcActCount").textContent = m.actions.length;
+    $("calcActions").innerHTML = "<thead><tr><th>#</th><th>Action</th><th>Base</th><th>Channel</th><th>Eligible %</th><th>Uplift %</th><th>Value / outcome</th><th>Contacts / yr</th><th>Incentive</th></tr></thead><tbody>" +
+      m.actions.map((a, i) => "<tr><td>" + a.n + "</td><td>" + esc(a.action) + "</td><td>" + esc(a.base) + "</td><td>" + esc(a.primary) + "</td>" +
+        [["elig", 100], ["uplift", 100], ["vpo", 1], ["contacts", 1], ["incent", 1]].map((f) => "<td><input type='number' step='any' min='0' data-act='" + i + "' data-f='" + f[0] + "' data-k='" + f[1] + "' value='" + +(a[f[0]] * f[1]).toFixed(5) + "'></td>").join("") + "</tr>").join("") + "</tbody>";
+    const bad = CALC.plan(m).badChannels;
+    $("calcStatus").innerHTML = "Using <b>" + esc(m.source) + "</b>: " + m.actions.length + " actions." + (bad.length ? " <span style='color:#b3261e'>" + bad.length + " action(s) use a channel that is not in the channel table and are valued at 0.</span>" : "");
+  }
+  function onCalcEdit(ev) {
+    const t = ev.target; if (t.tagName !== "INPUT" || t.type !== "number") return;
+    const v = parseFloat(t.value); if (isNaN(v) || v < 0) { renderCalc(); return; }
+    const m = state.calc;
+    if (t.dataset.set) { const f = SET_FIELDS.filter((x) => x[0] === t.dataset.set)[0]; m[f[0]] = v / f[2]; }
+    else if (t.dataset.mult) m.mult[t.dataset.mult] = v;
+    else if (t.dataset.ch) m.channels[t.dataset.ch][t.dataset.f] = t.dataset.f === "reach" ? v / 100 : v;
+    else if (t.dataset.act != null) m.actions[+t.dataset.act][t.dataset.f] = v / +t.dataset.k;
+    if (!/^edited inputs/.test(m.source)) m.source = "edited inputs (started from " + m.source + ")";
+    renderCalc();
+  }
+  ["calcSettings", "calcChannels", "calcActions"].forEach((id) => $(id).addEventListener("change", onCalcEdit));
+  $("calcReset").addEventListener("click", function () { state.calc = CALC.defaults(); state.calcWarnings = []; $("calcFile").value = ""; renderCalc(); });
+  $("calcFile").addEventListener("change", async function (ev) {
+    const f = ev.target.files[0]; if (!f) return;
+    try {
+      const res = CALC.parseWorkbook(await readXlsxRaw(f));
+      if (res.errors.length || !res.model) { showMsgs(res.errors, res.warnings); return; }
+      state.calc = res.model; state.calc.source = f.name + " (" + res.model.actions.length + " actions)"; state.calcWarnings = res.warnings;
+      renderCalc(); showMsgs([], res.warnings, "Loaded the calculator " + f.name + ": " + res.model.actions.length + " actions.");
+    } catch (e) { showMsgs(["Could not read the calculator workbook: " + e.message], []); }
+  });
+  $("calcDownload").addEventListener("click", function () {
+    download("value-calculator-inputs.csv", GS.toCsv(["n", "action", "journey", "base", "primary_channel", "value_type", "eligible_pct", "uplift_pct", "value_per_outcome", "contacts_per_year", "incentive_per_outcome"],
+      state.calc.actions.map((a) => ({ n: a.n, action: a.action, journey: a.journey, base: a.base, primary_channel: a.primary, value_type: a.vtype, eligible_pct: +(a.elig * 100).toFixed(4), uplift_pct: +(a.uplift * 100).toFixed(4), value_per_outcome: a.vpo, contacts_per_year: a.contacts, incentive_per_outcome: a.incent }))));
+  });
+  document.querySelectorAll('input[name="valMode"]').forEach(function (r) {
+    r.addEventListener("change", function () {
+      state.valuation = r.value;
+      $("calcBox").hidden = r.value !== "calculator"; $("placeBox").hidden = r.value === "calculator";
+      $("valSummary").textContent = "Valuation model: " + (r.value === "calculator" ? "iREA Value Calculator" : "simple placeholder ranges");
+    });
+  });
+
   /* ---------------- messages / run ---------------- */
   function showMsgs(errors, warnings, ok) {
     const m = $("msgs");
@@ -362,7 +461,7 @@
     const result = GS.runScan(state.refRows, state.bankRows, {
       bankName: $("bankName").value.trim() || "Uploaded bank",
       referenceName: state.refName,
-      customers: customers, assumptions: state.assumptions, channelRule: $("channelRule").value, availableSignals: signals.length ? signals : null,
+      customers: customers, assumptions: state.assumptions, calculator: state.valuation === "calculator" ? CALC.clone(state.calc) : null, channelRule: $("channelRule").value, availableSignals: signals.length ? signals : null,
     });
     const send = function () {
       frame.contentWindow.loadScanData(result);
@@ -370,7 +469,7 @@
       const c = { Covered: 0, Partial: 0, Missing: 0 };
       result.actions.forEach((a) => c[a.coverage]++);
       const summary = "Scan complete: " + c.Covered + " covered, " + c.Partial + " partial, " + c.Missing + " missing of " + result.actions.length +
-        " reference actions. " + result.meta.matchedBankActions + " of " + result.meta.bankActive + " active bank actions matched; " + result.bankOnly.length + " have no equivalent.";
+        " reference actions" + (result.financial ? " (" + result.financial.mapped + " valued with the Value Calculator)" : "") + ". " + result.meta.matchedBankActions + " of " + result.meta.bankActive + " active bank actions matched; " + result.bankOnly.length + " have no equivalent.";
       showMsgs([], state.bankWarnings.concat(state.refWarnings), summary);
       // collapse the panel but keep the outcome visible in its title bar
       document.querySelector("#runCard .gs-sub").textContent = result.bank + " vs " + result.reference + ": " + c.Covered + " covered, " + c.Partial + " partial, " + c.Missing + " missing. Click to change inputs.";
@@ -381,7 +480,7 @@
     else frame.addEventListener("load", send, { once: true });
   });
 
-  loadMasterReference(); refreshRefStatus(); renderAssumptions(); updateRunState();
+  loadMasterReference(); refreshRefStatus(); renderAssumptions(); renderCalc(); updateRunState();
 </script>
 </body>
 </html>

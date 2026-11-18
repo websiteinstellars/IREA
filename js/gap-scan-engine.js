@@ -629,6 +629,31 @@
     return { eligible_pct: elig, treat: treat, p10: Math.round(pctile(out, 0.1)), p50: Math.round(pctile(out, 0.5)), p90: Math.round(pctile(out, 0.9)), engagementOnly: false };
   }
 
+  /* ---------------- iREA Value Calculator valuation ---------------- */
+
+  // Pairs each calculator action with at most one reference action (best name match first,
+  // each side used once, so an action is never valued twice). Needs window.GapScanCalc.
+  function mapCalculator(refRows, model, plan) {
+    var cands = [];
+    var refTok = refRows.map(function (r) { return tokens(r.name); });
+    plan.rows.forEach(function (cr) {
+      var ct = tokens(cr.a.action), ck = normKey(cr.a.action);
+      refRows.forEach(function (ref, i) {
+        // An added action names the Pega action it values (refId): that pairing wins over any name match.
+        var s = cr.a.refId && cr.a.refId === ref.id ? 3 : normKey(ref.name) === ck ? 2 : similarity(refTok[i], ct);
+        if (cr.a.refId && cr.a.refId !== ref.id && s < 3) s = 0;
+        if (s >= LOOSE_THRESHOLD) {
+          if (s < 2 && rawOverlap(ref.name, cr.a.action) > 0) s += 0.05 * rawOverlap(ref.name, cr.a.action);
+          cands.push({ ci: cr.i, ri: i, s: s });
+        }
+      });
+    });
+    cands.sort(function (x, y) { return y.s - x.s || x.ri - y.ri; });
+    var byRef = {}, usedCalc = {};
+    cands.forEach(function (c) { if (byRef[c.ri] == null && !usedCalc[c.ci]) { byRef[c.ri] = { cr: plan.rows[c.ci], score: c.s }; usedCalc[c.ci] = 1; } });
+    return { byRef: byRef, unmatchedCalc: plan.rows.filter(function (cr) { return !usedCalc[cr.i]; }).map(function (cr) { return cr.a.action; }), matched: Object.keys(byRef).length };
+  }
+
   function summariseDetails(details, pairs, refsWithDetail) {
     var areas = {};
     AREAS.forEach(function (a) { areas[a] = {}; STATUSES.forEach(function (st) { areas[a][st] = 0; }); });
@@ -663,9 +688,16 @@
     var feeds = {};
     var details = [], detailPairs = 0, detailRefs = 0;
 
-    var actions = refRows.map(function (ref) {
+    // Valuation by the iREA Value Calculator (opts.calculator = a GapScanCalc model) instead of the placeholder ranges.
+    var calc = null;
+    if (opts.calculator && root.GapScanCalc) {
+      var cplan = root.GapScanCalc.plan(opts.calculator);
+      calc = { model: opts.calculator, plan: cplan, map: mapCalculator(refRows, opts.calculator, cplan) };
+    }
+
+    var actions = refRows.map(function (ref, refIdx) {
       var rt = tokens(ref.name), ctx = tokens(ref.group + " " + ref.journey.replace(/^J\d+\s/, "") + " " + ref.stage);
-      var best = null;
+      var best = null, cands = [];
       bankTok.forEach(function (bt) {
         var s = similarity(rt, bt.t);
         if (s <= 0) return;
@@ -675,8 +707,12 @@
         s = s + 0.05 * rawOverlap(ref.name, bt.b.name);
         // Same Pega path id is strong evidence of the same action (breaks ties between same-named actions).
         if (ref.id && ref.id === bt.b.id) s += 0.02;
+        cands.push([bt.b.name, s]);
         if (!best || s > best.score) best = { bt: bt, score: s };
       });
+      // The closest few bank actions, for the reviewer (also when nothing cleared the match threshold).
+      cands.sort(function (x, y) { return y[1] - x[1]; });
+      var candidates = cands.filter(function (c) { return c[1] >= 0.3; }).slice(0, 3).map(function (c) { return [c[0], +Math.min(1, c[1]).toFixed(2)]; });
 
       var coverage = "Missing", bankAction = "", notes = [];
       if (best && best.score >= MATCH_THRESHOLD) {
@@ -718,7 +754,19 @@
           gaps = String(g);
         }
       }
-      var px = price(ref, customers, assumptions);
+      var px, calcCols = {};
+      if (calc) {
+        var hit = calc.map.byRef[refIdx];
+        if (hit) {
+          var cr = hit.cr;
+          px = { eligible_pct: +(cr.a.elig * 100).toFixed(2), treat: Math.round(cr.base ? cr.base.eligible : 0), p10: Math.round(cr.net.Low), p50: Math.round(cr.net.Base), p90: Math.round(cr.net.High), engagementOnly: false, basis: "calculator" };
+          calcCols = { calc_action: cr.a.action, calc_value_type: cr.a.vtype, calc_channel: cr.a.primary, calc_wave: String(cr.wave), calc_rank: cr.rank == null ? "" : String(cr.rank), calc_added: cr.a.added ? "1" : "" };
+        } else {
+          px = { eligible_pct: null, treat: 0, p10: 0, p50: 0, p90: 0, engagementOnly: true, basis: "not-in-calculator" };
+        }
+      } else {
+        px = price(ref, customers, assumptions);
+      }
       var scanStatus = "Evaluated", missingFeatures = "";
       if (avail && coverage !== "Covered" && ref.requiresSignals.length) {
         var lacking = ref.requiresSignals.filter(function (s) { return avail.indexOf(sigKey(s)) < 0; });
@@ -728,17 +776,32 @@
         }
       }
       var priced = scanStatus === "Evaluated";
-      return {
+      var row = {
         action_id: ref.id, action: ref.name, journey: ref.journey, stage: ref.stage, pillar: ref.pillar,
         coverage: coverage, scan_status: scanStatus, bank_action: bankAction, gap_note: notes.join("; "),
-        match_score: best ? Math.min(1, best.score).toFixed(2) : "", detail_gaps: gaps,
+        match_score: best ? Math.min(1, best.score).toFixed(2) : "", candidates: candidates, detail_gaps: gaps,
         eligible_pct: priced && px.eligible_pct != null ? String(px.eligible_pct) : "",
         customers_to_treat: priced ? String(px.treat) : "",
-        value_basis: px.engagementOnly ? "engagement-only" : ref.valueBasis,
+        value_basis: px.basis || (px.engagementOnly ? "engagement-only" : ref.valueBasis),
         value_p10_usd: priced ? String(px.p10) : "", value_p50_usd: priced ? String(px.p50) : "", value_p90_usd: priced ? String(px.p90) : "",
         missing_features: missingFeatures
       };
+      Object.keys(calcCols).forEach(function (k) { row[k] = calcCols[k]; });
+      return row;
     });
+
+    var financial = null;
+    if (calc) {
+      var mdl = calc.model;
+      financial = {
+        model: "calculator", source: mdl.source, currency: mdl.currency || "USD",
+        settings: { retailBase: mdl.retailBase, smeBase: mdl.smeBase, overlap: mdl.overlap, wave1Count: mdl.wave1Count, wave1Real: mdl.wave1Real, wave2Real: mdl.wave2Real,
+          price: mdl.price, licence: mdl.licence, run: mdl.run, mult: mdl.mult },
+        calculatorActions: mdl.actions.length, mvpActions: mdl.actions.filter(function (a) { return !a.added; }).length, mapped: calc.map.matched, unmatchedCalculatorActions: calc.map.unmatchedCalc,
+        badChannels: calc.plan.badChannels,
+        allActions: { Low: Math.round(calc.plan.totals.Low), Base: Math.round(calc.plan.totals.Base), High: Math.round(calc.plan.totals.High) }
+      };
+    }
 
     var bankOnly = bankRows.filter(function (b) { return !matchedBank[b.id]; }).map(function (b) {
       return { id: b.id, issue: b.issue || "—", group: b.group || "—", name: b.name + (b.inactive ? " (" + (b.status || "inactive") + ")" : ""), channels: b.channels.join(", ") || "—" };
@@ -747,7 +810,9 @@
     return {
       bank: opts.bankName || "Uploaded bank", reference: opts.referenceName || "Reference CDH",
       scanDate: new Date().toISOString().slice(0, 10), synthetic: false, customers: customers,
-      actions: actions, bankOnly: bankOnly, feeds: feeds, details: details, detailSummary: summariseDetails(details, detailPairs, detailRefs),
+      actions: actions, bankOnly: bankOnly,
+      bankActions: bankRows.map(function (b) { return { id: b.id, name: b.name, issue: b.issue || "", group: b.group || "", inactive: !!b.inactive }; }),
+      feeds: feeds, details: details, detailSummary: summariseDetails(details, detailPairs, detailRefs), financial: financial,
       meta: { referenceActions: refRows.length, bankActions: bankRows.length, bankActive: live.length, matchedBankActions: Object.keys(matchedBank).length }
     };
   }
