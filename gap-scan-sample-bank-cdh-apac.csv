@@ -1,0 +1,29 @@
+action_id,name,issue,group,channels,status,suitability,audience_pct,description
+BA001,Welcome Journey: New Customers,Service,Onboarding,SMS;Push;Email,Active,,,Welcome and mobile app setup for new customers
+BA002,Mobile App Activation Push,Service,Digital,Push;SMS,Active,,,Get customers onto the mobile app
+BA003,eKYC Reminder,Service,Onboarding,SMS;WhatsApp;Web,Active,,,Finish your eKYC to unlock all features
+BA004,Credit Card Activation Reminder,Service,Cards,SMS;Push;WhatsApp,Active,,,Reminder to activate a new credit card
+BA005,e-Statement Opt-In,Service,Digital,Email;Web,Active,,,Switch to e-statements
+BA006,Salary Credit Setup Nudge,Sales,Deposits,SMS;Push,Active,,,Move your salary credit to us
+BA007,Savings Account Promo,Sales,Deposits,Push;Web,Active,,,Open a savings account in the app
+BA008,Time Deposit Maturity Reminder,Retention,Deposits,SMS;WhatsApp;Call Center,Active,,,Time deposit maturity: renew or reinvest
+BA009,Time Deposit Promo Rate,Sales,Deposits,SMS;Web,Active,,,Special rate on a new time deposit
+BA010,Lifestyle Credit Card Offer,Sales,Cards,Push;Web,Active,Credit score above 650,,Credit card with dining and travel rewards
+BA011,Card Instalment Conversion,Sales,Cards,SMS;Push,Active,,,Convert a large card purchase to instalments
+BA012,QR Payment First-Use Reward,Sales,Payments,Push;Web,Active,,,Reward for the first QR payment
+BA013,Pre-Approved Personal Loan,Sales,Lending,SMS;Push;WhatsApp,Active,Credit score above 650,,Pre-approved personal loan
+BA014,Festive Loan Promo,Sales,Lending,SMS;WhatsApp,Active,,,Special loan rate for the festive season
+BA015,Home Loan Refinancing Offer,Sales,Mortgage,Email;Web,Active,,,Refinance your home loan at a lower rate
+BA016,Motor Insurance Renewal,Retention,Insurance,SMS;WhatsApp,Active,,,Renew motor insurance
+BA017,Life Cover Offer,Sales,Insurance,SMS;Push,Active,,,Life cover reminder
+BA018,Unit Trust Regular Investment,Sales,Wealth,Push;Web,Active,,,Start a regular investment plan
+BA019,Relationship Manager Callback,Sales,Wealth,Email;Call Center,Active,,,A relationship manager calls to review your goals
+BA020,Birthday Greeting,Service,Loyalty,SMS;Push,Active,,,Birthday greeting
+BA021,Festive Greeting,Marketing,Seasonal,SMS;WhatsApp,Active,,,Festive greeting to customers
+BA022,Unusual Transaction Alert,Service,Security,Push;SMS,Active,,,Was this transaction you?
+BA023,Scam Awareness Tips,Service,Security,SMS;Web,Active,,,Scam awareness and security tips
+BA024,Remittance Rate Promo,Sales,Payments,SMS;WhatsApp;Push,Active,,,Better rate on your next overseas transfer
+BA025,Overseas Worker Family Savings,Sales,Savings,SMS;WhatsApp,Active,,,Savings plan for families of overseas workers
+BA026,Churn Risk Retention Call,Retention,Churn,Call Center;SMS,Active,,,Reach out to customers likely to leave
+BA027,Collections Reminder,Service,Collections,SMS;WhatsApp;Call Center,Active,,,Reminder for an overdue instalment
+BA028,Legacy Passbook Update Reminder,Service,Branch,SMS,Retired,,,Reminder to update a passbook at the branch

@@ -2729,4 +2729,90 @@ Treatment Details now has 1,387 rows, Engagement Policies 65, Contact Policies 3
 
 ---
 
+## 159. Value Calculator Questionnaire: Short Tab Extended, Practical Shortcut Added
+
+**Asked:** evaluate whether the Short tab of `iREA_Value_Calculator_Questionnaire.xlsx` (attached, from Downloads) gives enough to populate the calculator for a Gap Scan run; then add the missing questions to the Short tab and add the "scan first on defaults" shortcut to the workbook.
+
+**Evaluation (chat only):** the scan runs on the calculator defaults with no answers, so the 18 questions are enough for a first business case, but they leave these calculator inputs unanswered: incremental uplift (column M, all 128 rows; Q9/Q10 give only the baseline), reach for SMS, Email, Web and Agent (Web is the primary channel of 47 rows), outbound call cost, contacts per year (Q), incentive (T), margins for savings, investments and SME products, and eligible % for about seven further segments. Answers do not flow into the workbook automatically: someone enters them in the cells the Input Guide names.
+
+**Changes to the questionnaire:**
+- Short tab renamed "Short (25)": new column F "Feeds (calculator input)" for all questions; questions 19 to 25 added (19 SMS/email/web reach, 20 outbound call and email cost and answered share, 21 test-versus-control uplift, 22 incentive costs, 23 contact policy limits, 24 margins for savings, investments, SME card, payroll, POS, 25 counts for remittance, paper statements, home-loan refinance, no salary credit, salary diversion, churn-flagged, complaints). Numbering was appended so the Data Queries references to Q1 to Q17 stay valid. Source types now 13 Data, 7 Partly, 5 People.
+- Data Queries: Q19 SQL template added (SMS delivery, email open, web-login count); Assumed Tables `message_log` gains `opened_flag (email only)`.
+- How to complete: tab text updated to 25 / 17 questions; new section "PRACTICAL SHORTCUT: SCAN FIRST, THEN ASK ONLY WHAT THE TOP GAPS NEED" (run the scan on the Pega catalog export with default values, ask only for the inputs the top 10 to 20 gaps use, enter answers, upload the calculator, re-run; always ask Q1, Q18, Q13, Q14, Q19, Q20, Q21).
+- Full and Sign-off tabs unchanged. A copy of the workbook was saved in the project root.
+
+**Not done:** no importer from the answered questionnaire into the calculator (offered); the layout was checked by reading cell values and styles, not by opening it in Excel.
+
+---
+
+## 160. Value Calculator: APAC and North America Versions
+
+**Asked:** after a review of whether the placeholder inputs suit North American banking, "Let's have a North America version of the calculator and an APAC version."
+
+**Files (project root):** `iREA_for_Banks_Value_Calculator_APAC.xlsx` (the previous workbook, unchanged apart from "(APAC version)" in the Read Me title) and `iREA_for_Banks_Value_Calculator_North_America.xlsx`. The old unsuffixed `iREA_for_Banks_Value_Calculator.xlsx` was removed (its content is the APAC file); a copy of it from before this change is only in the session scratchpad. Anything that still refers to the old name (sections 154 and 155 above, older repo commits) means the APAC file.
+
+**North America version: what differs (49 cells, all listed with the reason on its new "Regional Differences" sheet).** These are Instellars working assumptions, not published benchmarks.
+- Channel table: WhatsApp reach 70% to 5% (not a mainstream banking channel there; no action uses it any more), SMS reach 85% to 45% (opt-in consent: TCPA and carrier rules) and cost 0.02 to 0.012, Agent reach 80% to 25% (outbound calls are screened) and cost 4 to 6. Push, In-App, Email and Web are unchanged.
+- The 18 actions whose primary channel was WhatsApp move to Email (3, 11, 26, 48, 50, 51, 53, 59, 66), Push (22, 32, 37, 43, 44) or SMS (56, 61, 63, 70); WhatsApp is dropped from the channel description of the other rows that listed it.
+- 11 numeric inputs: Card Activation Reminder uplift 15 points to 4, Disputed Funds Hold Update uplift 50% to 25%, eligible % cut for the remittance and overseas-worker rows (49, 60, 68, 102, 103) and the QR / wallet rows (15, 39, 62, 101).
+- Wording: Read Me, Input Guide, Data Request and the channel note refer to North America (USD or CAD, SMS consent, Reg E and scam-reimbursement liability instead of AFASA). Action names, journeys and Pega ids are unchanged so the Gap Scan still matches them to the master catalog. Customer bases (2M retail, 100K SME), value per outcome, contacts, incentives and the rest are identical to APAC.
+
+**Code:** `js/gap-scan-calculator.js` has `NA_CHANNELS` and `NA_OVERRIDES` (action number to changed fields), `REGIONS`, and `defaults(region)` (`"NA"` gives North America, anything else APAC); `GapScanCalc.regions` is exported and the default source label is now "iREA for Banks Value Calculator, APAC defaults" (or "North America defaults"). `gap-scan.html`: a "Defaults for" selector (APAC / North America) at the top of the Valuation model panel; switching loads that region's defaults (asks before replacing edited or uploaded inputs) and "Reset" returns to the selected region. Uploading a filled workbook still overrides everything. The report shows the region in its "Source:" note.
+
+**Verified live:** APAC defaults give the same totals as before (all-actions Base 8,376,411; the original 82 actions 7,493,481.4); North America defaults give Base 6,222,711 (Low 3,077,059, High 9,368,364). Parsing each workbook through the page's own reader gives zero field differences against the matching code defaults (128 actions, channel tables, bases). Sample bank scan against the master: APAC gap value Base $2.16M, North America $1.54M, with a different Top 10 (for example Salary Credit Setup first). No console errors.
+
+**Not done:** the questionnaire is still region-neutral (Q13 and Q14 name WhatsApp, Q16 names AFASA); the sample bank files and the report's other text are unchanged; the North America values are judgement, so the bank's own channel data (Q13, Q14, Q19, Q20) should replace them. Not pushed to GitHub. (The questionnaire part is done in section 161.)
+
+---
+
+## 161. Value Calculator Questionnaire: APAC and North America Versions
+
+**Asked:** "Let's have variants for Questionnaire also, what about the sample files."
+
+**Files (project root and Downloads):** `iREA_Value_Calculator_Questionnaire_APAC.xlsx` (the previous questionnaire, unchanged apart from "(APAC version)" and a "for use with ..._APAC.xlsx" note in the title rows of How to complete) and `iREA_Value_Calculator_Questionnaire_North_America.xlsx`. The old unsuffixed `iREA_Value_Calculator_Questionnaire.xlsx` was removed (its content is the APAC file; a pre-change copy is only in the session scratchpad). Built by `build_questionnaire_variants.py` from that file, so formatting, validation, filters and the Short tab's Feeds column are preserved.
+
+**North America version: 27 cells changed.** WhatsApp opt-in and WhatsApp cost become SMS consent (customers who agreed to receive texts) and SMS cost (Short rows 17 and 18 text and Feeds, Full rows 54, 56, 58, 41); AFASA liability becomes Reg E or scam-reimbursement liability (Short 20, Full 66, 39); overseas-remittance wording becomes "send or receive" (Short 29, Full 23, 37); POS / QR merchant becomes merchant acquiring (Short 11, 28, Full 19, 36, Assumed Tables C12); eKYC becomes identity verification (Full 32); currency question asks USD or CAD (Short 5); Data Queries consent query uses channel 'SMS' and the message-volume query uses ('SMS','EMAIL'). Question numbers, answer columns, A/E column and the practical shortcut are identical in both versions, so a bank's answers map the same way.
+
+**Deliberately left unchanged in the North America file:** action names quoted in the "Feeds" and Full-tab notes (OFW Family & Remittance actions, Festive Rate Offer, QR Spend Challenge, eKYC Completion Nudge, Remittance Received Alert). These are the calculator's action names, which are the same in both calculator versions so the Gap Scan can still match them; renaming them in only one document would make the questionnaire disagree with the workbook. Verified: a search for WhatsApp, AFASA, OFW, remittance, QR, eKYC, festive finds 34 hits in the APAC file and 12 in the North America file, all of the action-name kind. Checked by reading cell values; not opened in Excel.
+
+**Sample files (answer, no change made):** the scan itself does not depend on region; only the valuation does. `gap-scan-sample-bank-cdh.xlsx` / `.csv` are scan inputs and already North-American-flavoured (529 College Savings, CD Maturity, Direct Deposit Bonus). An APAC sample bank (WhatsApp templates, QR, remittance, festive actions) was built next: see section 162.
+
+**Not pushed to GitHub:** this section and section 159 and 160 work (questionnaire files, regional calculators, handover).
+
+---
+
+## 162. APAC Sample Bank (CSV and Workbook) Added Beside the North America Ones
+
+**Asked:** "Let's have an APAC sample bank as well."
+
+**Files (project root):** `gap-scan-sample-bank-cdh-apac.csv` (28 actions, actions only) and `gap-scan-sample-bank-cdh-apac.xlsx` (74 actions in the Pega catalog layout: Action Properties, Treatment Details, Engagement Policies, Contact Policies; 1,528 treatment rows, 76 policy rows, 3 contact policies). The existing `gap-scan-sample-bank-cdh.csv` / `.xlsx` are unchanged and are now described as the North America set. Generated by `make_sample_bank_apac.py` (scratchpad; same approach as `make_sample_bank_xlsx2.py`): each bank action that mirrors a master action takes that action's conditions with the bank's own differences (age 20 not 18, 40 not 36 on a limit, 120 not 180 days, some conditions skipped, a looser debt-to-income check, three bank-specific contact policies). No master action is used twice.
+
+**What is APAC about it:** WhatsApp as a channel (eKYC reminder, card activation, time deposit maturity, festive loan and greeting, remittance, e-wallet, collections), QR first-use reward, festive and Lunar New Year promos, eKYC, overseas-worker family savings, remittance rate promo, gold loan, salary advance, provident fund top-up, cooperative loan transfer, prepaid card top-up. Of the 74 actions, 57 are written to mirror a master action under a bank-style name (one of them, Lifestyle Credit Card Offer, mirrors a master action that is inactive, so the scan shows it as having no equivalent); 17 have no equivalent, including 3 Retired or Inactive.
+
+**Page:** `gap-scan.html` Step 2 now has four buttons: sample bank North America (.xlsx), sample bank APAC (.xlsx), sample CSV North America, sample CSV APAC, all loaded by one helper `sampleLoader(btnId, file, kind)` (replaces the two separate handlers; ids `useSample` and `useSampleBank` kept, `useSampleApac` and `useSampleBankApac` added). A sample is region-neutral for the scan itself; pick the matching "Defaults for" region in the valuation panel to price it.
+
+**Verified live:** both APAC buttons load (28 actions, 1 inactive; 74 actions, 3 inactive). Scan of the APAC workbook with APAC defaults: 47 of 109 covered, 21 partial, gaps Base $2.01M before overlap (Low $969K, High $3.06M), 18 bank actions in "no iREA equivalent". The North America workbook with North America defaults is unchanged at 42 covered, 20 partial, $1.54M. No console errors.
+
+**Matching behaviour found while building it (engine, not changed):** a bank action can be paired with more than one master action. "Festive Loan Promo" paired with both Festive Rate Offer (exact) and Festive Greeting (score 0.60, partial) while the bank's own "Festive Greetings" stayed unmatched, so the sample uses the name "Festive Greeting". "Lifestyle Credit Card Offer" correctly shows as no equivalent because the master's Lifestyle Card Recommendation is inactive (the 109 count is active actions only). Worth a one-to-one pairing pass in the engine if this matters for a real bank.
+
+**Not pushed to GitHub:** sections 159 to 162 and every file they added (questionnaires, regional calculators, APAC sample bank, `gap-scan.html` change).
+
+---
+
+## 163. Region Selector at the Top of the Gap Scan Panel
+
+**Asked:** "Let's have a region selector on the Gap Screen." (The Gap Scan page, `gap-scan.html`.)
+
+**What changed (`gap-scan.html` only):** one Region selector (APAC / North America, id `calcRegion`) now sits at the top of the "Run a scan" panel, above the three steps. It replaces both the "Defaults for" selector inside the valuation panel (section 160) and the four sample buttons (section 162). It drives:
+- the Value Calculator defaults the gaps are priced with (same behaviour as before: asks before replacing edited or uploaded inputs, and a "Reset" button returns to the selected region);
+- the two sample buttons, which load the selected region's sample bank (`useSampleBank`, xlsx) and sample CSV (`useSample`) and relabel themselves ("Use the APAC sample bank ...");
+- two links beside the selector to that region's calculator workbook and questionnaire (`#lnkCalc`, `#lnkQ`).
+The mapping is the `REGION_FILES` table in the script; `loadSample(kind)` and `applyRegionUi()` use it. The choice is remembered in `localStorage` key `irea-gapscan-region` (APAC if storage is unavailable). When the region is switched while a demo sample is loaded (file name starts `gap-scan-sample-bank-cdh`), the matching sample of the new region is loaded; a bank file the user uploaded is never swapped. The region does not change which actions are scanned or matched, only the valuation and the demo data.
+
+**Verified live:** default APAC with APAC buttons and links; loading the APAC sample then switching to North America swaps the bank to the 74-action North America sample, relabels buttons and links, stores "NA"; scan then gives gap value Base $1.54M (Low $755K, High $2.33M), report source "North America defaults"; reload keeps North America; no console errors. At the 268 px pane width the region bar fits, but the page still has the earlier horizontal overflow from other controls.
+
+**Not pushed to GitHub:** sections 159 to 163.
+
+---
+
 *This document reflects the state of the project as of the end of this session. Verify current file contents directly before making further changes — several fixes in this session were themselves responses to earlier assumptions (§3.4's CORS note, §1's byte-identical convention) turning out to be stale or environment-specific, not permanent facts about this app.*

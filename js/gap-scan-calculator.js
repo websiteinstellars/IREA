@@ -1,5 +1,5 @@
 /* iREA for Banks Value Calculator, as code.
-   Source: iREA_for_Banks_Value_Calculator.xlsx (82 MVP actions + Assumptions tab).
+   Source: iREA_for_Banks_Value_Calculator_APAC.xlsx and _North_America.xlsx (82 MVP actions + 46 added, + Assumptions tab).
    The per-action formula is the workbook's own, one for one:
      eligible customers = base (Retail or SME) x eligible %
      reached            = eligible x channel reach % (of the primary channel)
@@ -157,13 +157,73 @@
   function toAction(r) { var o = {}; FIELDS.forEach(function (f, i) { o[f] = r[i]; }); o.wave = null; o.added = false; o.refId = ""; return o; }
   function toAdded(r) { var o = toAction(r); o.added = true; o.refId = r[14] || ""; return o; }
 
-  function defaults() {
+  // North America defaults: the APAC defaults above with a different channel table and a few inputs changed.
+  // The same changes are listed, with the reason for each, on the "Regional Differences" sheet of
+  // iREA_for_Banks_Value_Calculator_North_America.xlsx. Working assumptions, not published benchmarks.
+  var NA_CHANNELS = {
+      "Push": { reach: 0.55, cost: 0.001 },
+      "In-App": { reach: 0.5, cost: 0 },
+      "WhatsApp": { reach: 0.05, cost: 0.03 },
+      "SMS": { reach: 0.45, cost: 0.012 },
+      "Email": { reach: 0.25, cost: 0.001 },
+      "Web": { reach: 0.3, cost: 0 },
+      "Agent": { reach: 0.25, cost: 6 }
+  };
+  var NA_OVERRIDES = {   // action number -> changed fields (primary channel, channel text, eligible %, uplift)
+    1: { channel: "Push" },
+    3: { primary: "Email", channel: "Email" },
+    5: { channel: "Push", uplift: 0.04 },
+    8: { channel: "Push" },
+    9: { channel: "Push" },
+    11: { primary: "Email", channel: "Email" },
+    15: { elig: 0.12 },
+    22: { primary: "Push", channel: "Push" },
+    26: { primary: "Email", channel: "Email" },
+    32: { primary: "Push", channel: "Push" },
+    33: { channel: "In-App" },
+    37: { primary: "Push", channel: "Push" },
+    39: { elig: 0.05 },
+    42: { channel: "Push" },
+    43: { primary: "Push", channel: "Push" },
+    44: { primary: "Push", channel: "Push" },
+    48: { primary: "Email", channel: "Email + Push" },
+    49: { elig: 0.015 },
+    50: { primary: "Email", channel: "Email + Push" },
+    51: { primary: "Email", channel: "Email + In-App" },
+    53: { primary: "Email", channel: "Email" },
+    54: { channel: "Push" },
+    56: { primary: "SMS", channel: "SMS" },
+    57: { channel: "Push" },
+    59: { primary: "Email", channel: "Email" },
+    60: { elig: 0.015 },
+    61: { primary: "SMS", channel: "SMS + Push" },
+    62: { elig: 0.01 },
+    63: { primary: "SMS", channel: "SMS + In-App" },
+    66: { primary: "Email", channel: "Email + In-App" },
+    68: { channel: "Push", elig: 0.015 },
+    69: { channel: "Push" },
+    70: { primary: "SMS", channel: "SMS + In-App" },
+    79: { channel: "In-App" },
+    80: { channel: "In-App" },
+    82: { channel: "Push", uplift: 0.25 },
+    101: { elig: 0.02 },
+    102: { elig: 0.01 },
+    103: { elig: 0.003 },
+    109: { channel: "Web + In-App" },
+    110: { channel: "Web + In-App + Push" }
+  };
+  var REGIONS = {
+    APAC: { label: "APAC", source: "iREA for Banks Value Calculator, APAC defaults" },
+    NA: { label: "North America", source: "iREA for Banks Value Calculator, North America defaults" }
+  };
+
+  function apacDefaults() {
     return {
-      source: "iREA for Banks Value Calculator (workbook defaults)",
+      source: "iREA for Banks Value Calculator, APAC defaults",
+      region: "APAC",
       currency: "USD",
       retailBase: 2000000, smeBase: 100000,
-      mult: { Low: 0.5, Base: 1, High: 1.5 },
-      overlap: 0.25, wave1Count: 40, wave1Real: 0.6, wave2Real: 0.2,
+      mult: { Low: 0.5, Base: 1, High: 1.5 },      overlap: 0.25, wave1Count: 40, wave1Real: 0.6, wave2Real: 0.2,
       price: 234000, licence: 0, run: 0,
       channels: {
         "Push": { reach: 0.55, cost: 0.001 }, "In-App": { reach: 0.5, cost: 0 }, "WhatsApp": { reach: 0.7, cost: 0.03 },
@@ -171,6 +231,15 @@
       },
       actions: ACTIONS_RAW.map(toAction).concat(ADDED_RAW.map(toAdded))
     };
+  }
+  // defaults("NA") gives the North America version; anything else gives the APAC version.
+  function defaults(region) {
+    var m = apacDefaults();
+    if (region !== "NA") return m;
+    m.region = "NA"; m.source = REGIONS.NA.source;
+    m.channels = JSON.parse(JSON.stringify(NA_CHANNELS));
+    m.actions.forEach(function (a) { var o = NA_OVERRIDES[a.n]; if (o) Object.keys(o).forEach(function (f) { a[f] = o[f]; }); });
+    return m;
   }
   function clone(m) { return JSON.parse(JSON.stringify(m || defaults())); }
 
@@ -270,5 +339,5 @@
     return { errors: errors, warnings: warnings, model: m };
   }
 
-  root.GapScanCalc = { defaults: defaults, clone: clone, economics: economics, plan: plan, threeYear: threeYear, parseWorkbook: parseWorkbook };
+  root.GapScanCalc = { defaults: defaults, regions: REGIONS, clone: clone, economics: economics, plan: plan, threeYear: threeYear, parseWorkbook: parseWorkbook };
 })(typeof window !== "undefined" ? window : this);

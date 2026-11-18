@@ -37,6 +37,10 @@
   .gs-btn.primary:disabled { opacity: 0.45; cursor: not-allowed; }
   .gs-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.6rem; }
   .gs-link { font-size: 0.76rem; color: var(--ink-soft); text-decoration: underline; cursor: pointer; background: none; border: 0; padding: 0; font-family: inherit; }
+  .gs-region { display: flex; flex-wrap: wrap; gap: 0.4rem 0.8rem; align-items: center; margin-top: 1rem; padding: 0.7rem 1rem; border: 1px solid var(--rule); border-radius: 8px; background: var(--paper); font-size: 0.82rem; }
+  .gs-region select { font: inherit; font-size: 0.82rem; padding: 0.35rem 0.55rem; border: 1px solid var(--rule); border-radius: 6px; background: var(--white); color: var(--ink); }
+  .gs-region .gs-hint { margin: 0; font-size: 0.76rem; color: var(--ink-soft); flex: 1 1 18rem; }
+  .gs-region a { font-size: 0.76rem; color: var(--ink-soft); }
   .gs-status { font-size: 0.78rem; margin-top: 0.5rem; color: var(--ink-soft); }
   .gs-status b { color: var(--ink); }
   .gs-msgs { margin: 0.9rem 0 0; font-size: 0.8rem; }
@@ -93,6 +97,15 @@
       <details class="gs-card" id="runCard" open>
         <summary>Run a scan <span class="gs-sub">Compare another bank's CDH against a reference CDH</span></summary>
         <div class="gs-body">
+          <div class="gs-region">
+            <label for="calcRegion"><b>Region</b></label>
+            <select id="calcRegion">
+              <option value="APAC" selected>APAC</option>
+              <option value="NA">North America</option>
+            </select>
+            <span class="gs-hint">Sets the Value Calculator defaults the gaps are priced with and which sample bank the sample buttons load. The scan still compares against the same master catalog.</span>
+            <span><a id="lnkCalc" href="iREA_for_Banks_Value_Calculator_APAC.xlsx" download>Calculator workbook</a> · <a id="lnkQ" href="iREA_Value_Calculator_Questionnaire_APAC.xlsx" download>Questionnaire</a></span>
+          </div>
           <div class="gs-steps">
 
             <div class="gs-step">
@@ -146,11 +159,14 @@
             <label class="gs-radio"><input type="radio" name="valMode" value="placeholder"><span><b>Simple placeholder ranges</b><br><span class="gs-hint" style="margin:0">The earlier model: reach × response rate × value per customer, sampled 2,000 times. Covers every reference action but uses made-up ranges.</span></span></label>
 
             <div id="calcBox">
-              <p class="gs-hint" style="margin:0.6rem 0 0">Net value per action per year = eligible customers × channel reach × uplift × scenario × value per outcome − contact cost − incentive cost. The report shows the Low / Base / High scenarios as P10 / P50 / P90. <b>These are the workbook's illustrative defaults, not any bank's figures</b>: edit them below or upload the bank's own filled-in calculator (added rows are recognised by the Pega action id in column Z). The project folder has the workbook, including the added actions: iREA_for_Banks_Value_Calculator.xlsx.</p>
+              <p class="gs-hint" style="margin:0.6rem 0 0">Net value per action per year = eligible customers × channel reach × uplift × scenario × value per outcome − contact cost − incentive cost. The report shows the Low / Base / High scenarios as P10 / P50 / P90. <b>These are the workbook's illustrative defaults, not any bank's figures</b>: edit them below or upload the bank's own filled-in calculator (added rows are recognised by the Pega action id in column Z). The project folder has two workbooks, one per region, both including the added actions: iREA_for_Banks_Value_Calculator_APAC.xlsx and iREA_for_Banks_Value_Calculator_North_America.xlsx (its Regional Differences sheet lists every input that differs and why).</p>
+              <div class="gs-row">
+                <span class="gs-hint" style="margin:0">Defaults for <b id="calcRegionName"></b> (change the region at the top of this panel). Switching replaces the inputs below with that region's defaults: the channel mix, SMS and outbound-call assumptions and a few segment sizes differ.</span>
+              </div>
               <div class="gs-row">
                 <input type="file" id="calcFile" accept=".xlsx,.xls" style="max-width:20rem">
                 <button class="gs-link" id="calcDownload" type="button">Download the inputs as CSV</button>
-                <button class="gs-link" id="calcReset" type="button">Reset to workbook defaults</button>
+                <button class="gs-link" id="calcReset" type="button">Reset to the selected region's defaults</button>
               </div>
               <div class="gs-status" id="calcStatus"></div>
               <div class="gs-wide"><table id="calcSettings"></table></div>
@@ -315,24 +331,34 @@
     } catch (e) { state.bankRows = null; $("bankStatus").textContent = "Could not read the file."; showMsgs(["Could not read the bank file: " + e.message], []); updateRunState(); }
   }
   $("bankFile").addEventListener("change", function (ev) { const f = ev.target.files[0]; if (f) acceptBankFile(f); });
-  $("useSample").addEventListener("click", async function () {
+  // Sample banks come in two regional sets. Both scan against the same master catalog; only the actions differ
+  // (North America: SMS, email, CDs, 529 plans; APAC: WhatsApp, QR, remittance, festive and eKYC actions).
+  // CSV = 28 actions, actions only. xlsx = 74 actions in the catalog layout, with Treatment Details, Engagement Policies and Contact Policies tabs.
+  // The Region selector at the top of the panel (#calcRegion) picks which set the two sample buttons load.
+  const REGION_FILES = {
+    APAC: { label: "APAC", csv: "gap-scan-sample-bank-cdh-apac.csv", xlsx: "gap-scan-sample-bank-cdh-apac.xlsx", calc: "iREA_for_Banks_Value_Calculator_APAC.xlsx", q: "iREA_Value_Calculator_Questionnaire_APAC.xlsx" },
+    NA: { label: "North America", csv: "gap-scan-sample-bank-cdh.csv", xlsx: "gap-scan-sample-bank-cdh.xlsx", calc: "iREA_for_Banks_Value_Calculator_North_America.xlsx", q: "iREA_Value_Calculator_Questionnaire_North_America.xlsx" },
+  };
+  const regionNow = () => ($("calcRegion").value === "NA" ? "NA" : "APAC");
+  async function loadSample(kind) {
+    const file = REGION_FILES[regionNow()][kind];
     try {
-      const res = await fetch("gap-scan-sample-bank-cdh.csv", { cache: "no-store" });
+      const res = await fetch(file, { cache: "no-store" });
       if (!res.ok) throw new Error("status " + res.status);
       if (!$("bankName").value) $("bankName").value = "Sample Bank";
-      acceptBank(GS.normaliseBank(GS.parseUpload(await res.text(), "gap-scan-sample-bank-cdh.csv"), "Bank file"), "gap-scan-sample-bank-cdh.csv");
+      if (kind === "csv") acceptBank(GS.normaliseBank(GS.parseUpload(await res.text(), file), "Bank file"), file);
+      else await acceptBankFile(new File([await res.blob()], file));
     } catch (e) { showMsgs(["Could not load the sample file (" + e.message + "). Serve the site over http rather than opening it as a file."], []); }
-  });
-
-  // A larger sample bank (74 actions: the CSV's 28 plus 46 more) in the catalog layout, with Treatment Details, Engagement Policies and Contact Policies tabs.
-  $("useSampleBank").addEventListener("click", async function () {
-    try {
-      const res = await fetch("gap-scan-sample-bank-cdh.xlsx", { cache: "no-store" });
-      if (!res.ok) throw new Error("status " + res.status);
-      if (!$("bankName").value) $("bankName").value = "Sample Bank";
-      await acceptBankFile(new File([await res.blob()], "gap-scan-sample-bank-cdh.xlsx"));
-    } catch (e) { showMsgs(["Could not load the sample bank (" + e.message + "). Serve the site over http rather than opening it as a file."], []); }
-  });
+  }
+  $("useSample").addEventListener("click", function () { loadSample("csv"); });
+  $("useSampleBank").addEventListener("click", function () { loadSample("xlsx"); });
+  function applyRegionUi() {
+    const r = REGION_FILES[regionNow()];
+    $("useSampleBank").textContent = "Use the " + r.label + " sample bank (.xlsx, with policies)";
+    $("useSample").textContent = "Use the " + r.label + " sample CSV (actions only)";
+    $("lnkCalc").href = r.calc; $("lnkQ").href = r.q;
+    $("calcRegionName").textContent = r.label;
+  }
 
   function download(name, text, type) {
     const a = document.createElement("a");
@@ -401,14 +427,25 @@
     const v = parseFloat(t.value); if (isNaN(v) || v < 0) { renderCalc(); return; }
     const m = state.calc;
     if (t.dataset.set) { const f = SET_FIELDS.filter((x) => x[0] === t.dataset.set)[0]; m[f[0]] = v / f[2]; }
-    else if (t.dataset.mult) m.mult[t.dataset.mult] = v;
-    else if (t.dataset.ch) m.channels[t.dataset.ch][t.dataset.f] = t.dataset.f === "reach" ? v / 100 : v;
+    else if (t.dataset.mult) m.mult[t.dataset.mult] = v;    else if (t.dataset.ch) m.channels[t.dataset.ch][t.dataset.f] = t.dataset.f === "reach" ? v / 100 : v;
     else if (t.dataset.act != null) m.actions[+t.dataset.act][t.dataset.f] = v / +t.dataset.k;
     if (!/^edited inputs/.test(m.source)) m.source = "edited inputs (started from " + m.source + ")";
     renderCalc();
   }
   ["calcSettings", "calcChannels", "calcActions"].forEach((id) => $(id).addEventListener("change", onCalcEdit));
-  $("calcReset").addEventListener("click", function () { state.calc = CALC.defaults(); state.calcWarnings = []; $("calcFile").value = ""; renderCalc(); });
+  function loadRegionDefaults() { state.calc = CALC.defaults($("calcRegion").value); state.calcWarnings = []; $("calcFile").value = ""; renderCalc(); }
+  $("calcReset").addEventListener("click", loadRegionDefaults);
+  $("calcRegion").addEventListener("change", function () {
+    const edited = /^edited inputs|\.xlsx|\.xls/i.test(state.calc.source);
+    if (edited && !window.confirm("Replace the inputs you edited or uploaded with the " + CALC.regions[$("calcRegion").value].label + " defaults?")) { $("calcRegion").value = state.calc.region || "APAC"; applyRegionUi(); return; }
+    loadRegionDefaults();
+    applyRegionUi();
+    try { localStorage.setItem("irea-gapscan-region", regionNow()); } catch (e) {}
+    // A demo sample from the other region is swapped for the matching one; a bank file the user loaded is left alone.
+    const was = /^gap-scan-sample-bank-cdh.*\.(csv|xlsx)$/.exec(state.bankFile || "");
+    if (was) loadSample(was[1]);
+    showMsgs([], [], "Loaded the " + CALC.regions[$("calcRegion").value].label + " defaults of the Value Calculator" + (was ? " and its sample bank." : "."));
+  });
   $("calcFile").addEventListener("change", async function (ev) {
     const f = ev.target.files[0]; if (!f) return;
     try {
@@ -470,6 +507,9 @@
     else frame.addEventListener("load", send, { once: true });
   });
 
+  // Remember the region between visits (falls back to APAC if storage is unavailable).
+  try { const saved = localStorage.getItem("irea-gapscan-region"); if (saved && REGION_FILES[saved]) { $("calcRegion").value = saved; state.calc = CALC.defaults(saved); } } catch (e) {}
+  applyRegionUi();
   loadMasterReference(); refreshRefStatus(); renderAssumptions(); renderCalc(); updateRunState();
 </script>
 </body>
