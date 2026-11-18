@@ -117,7 +117,6 @@
               <div class="gs-row">
                 <button class="gs-btn" id="useSampleBank" type="button">Use the sample bank (.xlsx, with policies)</button>
                 <button class="gs-btn" id="useSample" type="button">Use the sample CSV (actions only)</button>
-                <button class="gs-btn" id="useSampleCat" type="button">Use the sample catalog (.xlsx)</button>
                 <button class="gs-link" id="dlTemplate" type="button">Download template</button>
               </div>
               <div class="gs-status" id="bankStatus">No file loaded yet.</div>
@@ -325,7 +324,7 @@
     } catch (e) { showMsgs(["Could not load the sample file (" + e.message + "). Serve the site over http rather than opening it as a file."], []); }
   });
 
-  // The same 28-action sample bank as the CSV, in the catalog layout, with Treatment Details, Engagement Policies and Contact Policies tabs.
+  // A larger sample bank (74 actions: the CSV's 28 plus 46 more) in the catalog layout, with Treatment Details, Engagement Policies and Contact Policies tabs.
   $("useSampleBank").addEventListener("click", async function () {
     try {
       const res = await fetch("gap-scan-sample-bank-cdh.xlsx", { cache: "no-store" });
@@ -333,15 +332,6 @@
       if (!$("bankName").value) $("bankName").value = "Sample Bank";
       await acceptBankFile(new File([await res.blob()], "gap-scan-sample-bank-cdh.xlsx"));
     } catch (e) { showMsgs(["Could not load the sample bank (" + e.message + "). Serve the site over http rather than opening it as a file."], []); }
-  });
-
-  $("useSampleCat").addEventListener("click", async function () {
-    try {
-      const res = await fetch("gap-scan-sample-bank-catalog.xlsx", { cache: "no-store" });
-      if (!res.ok) throw new Error("status " + res.status);
-      if (!$("bankName").value) $("bankName").value = "Sample Bank (catalog)";
-      await acceptBankFile(new File([await res.blob()], "gap-scan-sample-bank-catalog.xlsx"));
-    } catch (e) { showMsgs(["Could not load the sample catalog (" + e.message + "). Serve the site over http rather than opening it as a file."], []); }
   });
 
   function download(name, text, type) {
